@@ -39,3 +39,7 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# local notes and tool settings (not part of the app)
+.claude/
+docs/
