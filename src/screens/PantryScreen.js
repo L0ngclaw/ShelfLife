@@ -1,11 +1,12 @@
 import { View, FlatList, StyleSheet } from "react-native";
 import { List, FAB, Text, ActivityIndicator } from "react-native-paper";
 import { useItems } from "../context/ItemsContext";
-import { getCategory } from "../constants/categories";
 import { describeExpiry } from "../utils/dates";
+import { useCategories } from "../context/CategoriesContext";
 
 export default function PantryScreen({ navigation }) {
   const { items, loading } = useItems();
+  const { getCategory } = useCategories();
 
   // Only items still in the pantry, soonest expiry first
   const pantry = items

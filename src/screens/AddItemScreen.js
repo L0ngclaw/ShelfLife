@@ -1,13 +1,22 @@
 import { useState } from "react";
 import { ScrollView, View, StyleSheet } from "react-native";
-import { TextInput, Button, Chip, HelperText, Text } from "react-native-paper";
+import {
+  TextInput,
+  Button,
+  Chip,
+  HelperText,
+  Text,
+  Portal,
+  Dialog,
+} from "react-native-paper";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { CATEGORIES } from "../constants/categories";
 import { toISODate, describeExpiry } from "../utils/dates";
 import { useItems } from "../context/ItemsContext";
+import { useCategories } from "../context/CategoriesContext";
 
 export default function AddItemScreen({ navigation }) {
   const { addItem } = useItems();
+  const { categories, addCategory } = useCategories();
   const [name, setName] = useState("");
   const [category, setCategory] = useState("dairy");
   const [weight, setWeight] = useState("1");
@@ -20,10 +29,31 @@ export default function AddItemScreen({ navigation }) {
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
+  // "New category" dialog
+  const [dialogVisible, setDialogVisible] = useState(false);
+  const [newCategory, setNewCategory] = useState("");
+  const [categoryError, setCategoryError] = useState("");
+
   // Picking a category also fills in a typical weight for it
   const selectCategory = (c) => {
     setCategory(c.key);
     setWeight(String(c.defaultWeightKg));
+  };
+
+  const openDialog = () => {
+    setNewCategory("");
+    setCategoryError("");
+    setDialogVisible(true);
+  };
+
+  const handleAddCategory = async () => {
+    try {
+      const created = await addCategory(newCategory);
+      selectCategory(created); // select the new category straight away
+      setDialogVisible(false);
+    } catch (e) {
+      setCategoryError(e.message);
+    }
   };
 
   const onDateChange = (event, selectedDate) => {
@@ -81,7 +111,7 @@ export default function AddItemScreen({ navigation }) {
         Category
       </Text>
       <View style={styles.chips}>
-        {CATEGORIES.map((c) => (
+        {categories.map((c) => (
           <Chip
             key={c.key}
             icon={c.icon}
@@ -93,6 +123,14 @@ export default function AddItemScreen({ navigation }) {
             {c.label}
           </Chip>
         ))}
+        <Chip
+          icon="plus"
+          mode="outlined"
+          onPress={openDialog}
+          style={styles.chip}
+        >
+          New category
+        </Chip>
       </View>
 
       <TextInput
@@ -136,6 +174,32 @@ export default function AddItemScreen({ navigation }) {
       >
         Save item
       </Button>
+
+      <Portal>
+        <Dialog
+          visible={dialogVisible}
+          onDismiss={() => setDialogVisible(false)}
+        >
+          <Dialog.Title>New category</Dialog.Title>
+          <Dialog.Content>
+            <TextInput
+              label="Category name"
+              mode="outlined"
+              value={newCategory}
+              onChangeText={setNewCategory}
+              maxLength={20}
+              autoFocus
+            />
+            <HelperText type="error" visible={!!categoryError}>
+              {categoryError}
+            </HelperText>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setDialogVisible(false)}>Cancel</Button>
+            <Button onPress={handleAddCategory}>Add</Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
     </ScrollView>
   );
 }

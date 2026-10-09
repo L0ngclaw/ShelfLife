@@ -5,18 +5,21 @@ import { StatusBar } from "expo-status-bar";
 import { AuthProvider } from "./src/context/AuthContext";
 import RootNavigator from "./src/navigation/RootNavigator";
 import { ItemsProvider } from "./src/context/ItemsContext";
+import { CategoriesProvider } from "./src/context/CategoriesContext";
 
 export default function App() {
   return (
     <SafeAreaProvider>
       <PaperProvider>
         <AuthProvider>
-          <ItemsProvider>
-            <NavigationContainer>
-              <RootNavigator />
-              <StatusBar style="auto" />
-            </NavigationContainer>
-          </ItemsProvider>
+          <CategoriesProvider>
+            <ItemsProvider>
+              <NavigationContainer>
+                <RootNavigator />
+                <StatusBar style="auto" />
+              </NavigationContainer>
+            </ItemsProvider>
+          </CategoriesProvider>
         </AuthProvider>
       </PaperProvider>
     </SafeAreaProvider>
