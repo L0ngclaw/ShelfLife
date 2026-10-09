@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ScrollView, View, StyleSheet, Image } from "react-native";
 import { takePhoto } from "../services/photoService";
 import {
   TextInput,
