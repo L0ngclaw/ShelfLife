@@ -17,4 +17,5 @@ export const CATEGORIES = [
 
 // Find a category by key; fall back to "Other" if it is unknown
 export const getCategory = (key) =>
-  CATEGORIES.find((c) => c.key === key) ?? CATEGORIES[CATEGORIES.length - 1];
+  CATEGORIES.find((c) => c.key === key) ??
+  CATEGORIES.find((c) => c.key === "other");
