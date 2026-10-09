@@ -7,6 +7,7 @@ import AppNavigator from "./AppNavigator";
 import LoginScreen from "../screens/LoginScreen";
 import SignUpScreen from "../screens/SignUpScreen";
 import AddItemScreen from "../screens/AddItemScreen";
+import ItemDetailScreen from "../screens/ItemDetailScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -35,6 +36,11 @@ export default function RootNavigator() {
               title: "Add item",
               presentation: "modal",
             }}
+          />
+          <Stack.Screen
+            name="ItemDetail"
+            component={ItemDetailScreen}
+            options={{ headerShown: true, title: "Item details" }}
           />
         </>
       ) : (

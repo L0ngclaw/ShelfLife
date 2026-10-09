@@ -1,8 +1,8 @@
 import { View, FlatList, StyleSheet } from "react-native";
-import { List, FAB, Text, ActivityIndicator } from "react-native-paper";
+import { List, FAB, Text, ActivityIndicator, Avatar } from "react-native-paper";
 import { useItems } from "../context/ItemsContext";
-import { describeExpiry } from "../utils/dates";
 import { useCategories } from "../context/CategoriesContext";
+import { describeExpiry } from "../utils/dates";
 
 export default function PantryScreen({ navigation }) {
   const { items, loading } = useItems();
@@ -32,7 +32,20 @@ export default function PantryScreen({ navigation }) {
             <List.Item
               title={item.name}
               description={`${cat.label} · ${item.weightKg} kg · ${describeExpiry(item.expiryDate)}`}
-              left={(props) => <List.Icon {...props} icon={cat.icon} />}
+              onPress={() =>
+                navigation.navigate("ItemDetail", { itemId: item.id })
+              }
+              left={(props) =>
+                item.photoUri ? (
+                  <Avatar.Image
+                    size={40}
+                    source={{ uri: item.photoUri }}
+                    style={props.style}
+                  />
+                ) : (
+                  <List.Icon {...props} icon={cat.icon} />
+                )
+              }
               right={(props) =>
                 item.syncStatus === "pending" ? (
                   <List.Icon {...props} icon="cloud-upload-outline" />
