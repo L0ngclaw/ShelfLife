@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { View, StyleSheet, KeyboardAvoidingView, Platform } from "react-native";
+import { StyleSheet, KeyboardAvoidingView, Platform } from "react-native";
 import { Text, TextInput, Button, HelperText } from "react-native-paper";
 import { useAuth, friendlyAuthError } from "../context/AuthContext";
 

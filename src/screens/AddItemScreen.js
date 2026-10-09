@@ -99,7 +99,7 @@ export default function AddItemScreen({ navigation }) {
         photoUri: photoUri,
       });
       navigation.goBack();
-    } catch (e) {
+    } catch {
       setError("Could not save the item. Please try again.");
       setSaving(false);
     }

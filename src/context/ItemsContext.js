@@ -7,33 +7,41 @@ const ItemsContext = createContext(null);
 
 export function ItemsProvider({ children }) {
   const { user } = useAuth();
-  const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // Remember WHICH user the loaded items belong to
+  const [data, setData] = useState({ uid: null, items: [] });
 
   // Load this user's items from the phone whenever the user changes
   useEffect(() => {
-    if (!user) {
-      setItems([]);
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
+    if (!user) return;
+    let cancelled = false;
     loadItems(user.uid)
-      .then(setItems)
-      .finally(() => setLoading(false));
+      .then((items) => {
+        if (!cancelled) setData({ uid: user.uid, items });
+      })
+      .catch(() => {
+        if (!cancelled) setData({ uid: user.uid, items: [] });
+      });
+    // If the user changes before loading finishes, ignore the old result
+    return () => {
+      cancelled = true;
+    };
   }, [user]);
+
+  // Worked out on every render instead of being stored as extra state
+  const items = user && data.uid === user.uid ? data.items : [];
+  const loading = !!user && data.uid !== user.uid;
 
   // Update the screen and save to the phone (offline-first)
   const persist = async (nextItems) => {
-    setItems(nextItems);
+    setData({ uid: user.uid, items: nextItems });
     await saveItems(user.uid, nextItems);
   };
 
-  const addItem = async (data) => {
+  const addItem = async (itemData) => {
     const now = new Date().toISOString();
     const item = {
       id: createId(),
-      ...data,
+      ...itemData,
       status: "active",
       createdAt: now,
       updatedAt: now,

@@ -13,16 +13,25 @@ const OTHER = CATEGORIES.find((c) => c.key === "other");
 
 export function CategoriesProvider({ children }) {
   const { user } = useAuth();
-  const [customCategories, setCustomCategories] = useState([]);
+  // Remember WHICH user the custom categories belong to
+  const [data, setData] = useState({ uid: null, list: [] });
 
   useEffect(() => {
-    if (!user) {
-      setCustomCategories([]);
-      return;
-    }
-    loadCustomCategories(user.uid).then(setCustomCategories);
+    if (!user) return;
+    let cancelled = false;
+    loadCustomCategories(user.uid)
+      .then((list) => {
+        if (!cancelled) setData({ uid: user.uid, list });
+      })
+      .catch(() => {
+        if (!cancelled) setData({ uid: user.uid, list: [] });
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [user]);
 
+  const customCategories = user && data.uid === user.uid ? data.list : [];
   const categories = [...CATEGORIES, ...customCategories];
 
   const getCategory = (key) => categories.find((c) => c.key === key) ?? OTHER;
@@ -43,7 +52,7 @@ export function CategoriesProvider({ children }) {
       custom: true,
     };
     const next = [...customCategories, category];
-    setCustomCategories(next);
+    setData({ uid: user.uid, list: next });
     await saveCustomCategories(user.uid, next);
     return category;
   };

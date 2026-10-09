@@ -26,7 +26,7 @@ try {
   auth = initializeAuth(app, {
     persistence: getReactNativePersistence(AsyncStorage),
   });
-} catch (e) {
+} catch {
   auth = getAuth(app); // already initialised (hot reload)
 }
 
