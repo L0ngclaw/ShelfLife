@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ScrollView, View, StyleSheet } from "react-native";
+import { takePhoto } from "../services/photoService";
 import {
   TextInput,
   Button,
@@ -33,6 +33,7 @@ export default function AddItemScreen({ navigation }) {
   const [dialogVisible, setDialogVisible] = useState(false);
   const [newCategory, setNewCategory] = useState("");
   const [categoryError, setCategoryError] = useState("");
+  const [photoUri, setPhotoUri] = useState(null);
 
   // Picking a category also fills in a typical weight for it
   const selectCategory = (c) => {
@@ -61,6 +62,18 @@ export default function AddItemScreen({ navigation }) {
     if (event.type === "set" && selectedDate) setExpiry(selectedDate);
   };
 
+  const handleTakePhoto = async () => {
+    try {
+      const uri = await takePhoto();
+      if (uri) setPhotoUri(uri); // null = user cancelled
+    } catch (e) {
+      setError(
+        e.message === "PERMISSION_DENIED"
+          ? "Camera permission is needed to take a photo."
+          : "Could not take the photo. Please try again.",
+      );
+    }
+  };
   const handleSave = async () => {
     // Validate on the device before saving
     const trimmedName = name.trim();
@@ -82,7 +95,7 @@ export default function AddItemScreen({ navigation }) {
         weightKg,
         purchaseDate: toISODate(new Date()),
         expiryDate: toISODate(expiry),
-        photoUri: null,
+        photoUri: photoUri,
       });
       navigation.goBack();
     } catch (e) {
@@ -98,6 +111,21 @@ export default function AddItemScreen({ navigation }) {
       contentContainerStyle={styles.container}
       keyboardShouldPersistTaps="handled"
     >
+      {photoUri ? (
+        <Image
+          source={{ uri: photoUri }}
+          style={styles.photo}
+          accessibilityLabel="Item photo"
+        />
+      ) : null}
+      <Button
+        mode="outlined"
+        icon="camera"
+        onPress={handleTakePhoto}
+        style={styles.photoButton}
+      >
+        {photoUri ? "Retake photo" : "Take photo"}
+      </Button>
       <TextInput
         label="Item name"
         mode="outlined"
@@ -210,4 +238,12 @@ const styles = StyleSheet.create({
   label: { marginTop: 4, marginBottom: 8 },
   chips: { flexDirection: "row", flexWrap: "wrap", marginBottom: 12 },
   chip: { marginRight: 8, marginBottom: 8 },
+  photo: {
+    width: 160,
+    height: 160,
+    borderRadius: 12,
+    alignSelf: "center",
+    marginBottom: 8,
+  },
+  photoButton: { marginBottom: 12 },
 });
