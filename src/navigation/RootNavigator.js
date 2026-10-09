@@ -6,6 +6,7 @@ import { useAuth } from "../context/AuthContext";
 import AppNavigator from "./AppNavigator";
 import LoginScreen from "../screens/LoginScreen";
 import SignUpScreen from "../screens/SignUpScreen";
+import AddItemScreen from "../screens/AddItemScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -24,7 +25,18 @@ export default function RootNavigator() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       {user ? (
-        <Stack.Screen name="Main" component={AppNavigator} />
+        <>
+          <Stack.Screen name="Main" component={AppNavigator} />
+          <Stack.Screen
+            name="AddItem"
+            component={AddItemScreen}
+            options={{
+              headerShown: true,
+              title: "Add item",
+              presentation: "modal",
+            }}
+          />
+        </>
       ) : (
         <>
           <Stack.Screen name="Login" component={LoginScreen} />
