@@ -11,18 +11,22 @@ import {
   Portal,
   Dialog,
   Button,
+  Searchbar,
 } from "react-native-paper";
 import { useItems } from "../context/ItemsContext";
 import { useCategories } from "../context/CategoriesContext";
 import { describeExpiry } from "../utils/dates";
 import { EXPIRY_LEVELS } from "../utils/expiryStatus";
 import ExpiryRing from "../components/ExpiryRing";
+import { useDebouncedValue } from "../hooks/useDebouncedValue";
 
 export default function PantryScreen({ navigation }) {
   const { items, loading } = useItems();
   const { getCategory } = useCategories();
 
   const [legendVisible, setLegendVisible] = useState(false);
+  const [query, setQuery] = useState("");
+  const searchText = useDebouncedValue(query).trim().toLowerCase();
 
   // Put an (i) button in the Pantry header that opens the colour legend
   useLayoutEffect(() => {
@@ -38,8 +42,15 @@ export default function PantryScreen({ navigation }) {
   }, [navigation]);
 
   // Only items still in the pantry, soonest expiry first
+  // Only items still in the pantry, matching the search, soonest expiry first
   const pantry = items
     .filter((i) => i.status === "active")
+    .filter(
+      (i) =>
+        !searchText ||
+        i.name.toLowerCase().includes(searchText) ||
+        getCategory(i.category).label.toLowerCase().includes(searchText),
+    )
     .sort((a, b) => a.expiryDate.localeCompare(b.expiryDate));
 
   if (loading) {
@@ -52,6 +63,12 @@ export default function PantryScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
+      <Searchbar
+        placeholder="Search by name or category"
+        value={query}
+        onChangeText={setQuery}
+        style={styles.search}
+      />
       <FlatList
         data={pantry}
         keyExtractor={(item) => item.id}
@@ -91,8 +108,14 @@ export default function PantryScreen({ navigation }) {
         }}
         ListEmptyComponent={
           <View style={styles.center}>
-            <Text variant="titleMedium">Your pantry is empty</Text>
-            <Text variant="bodyMedium">Tap + to add your first item.</Text>
+            <Text variant="titleMedium">
+              {searchText
+                ? "No items match your search"
+                : "Your pantry is empty"}
+            </Text>
+            {!searchText && (
+              <Text variant="bodyMedium">Tap + to add your first item.</Text>
+            )}
           </View>
         }
         contentContainerStyle={pantry.length === 0 && styles.emptyList}
