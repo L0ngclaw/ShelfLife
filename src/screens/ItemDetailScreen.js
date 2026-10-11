@@ -6,6 +6,7 @@ import { useCategories } from "../context/CategoriesContext";
 import { describeExpiry, toISODate } from "../utils/dates";
 import { getExpiryStatus } from "../utils/expiryStatus";
 import ExpiryRing from "../components/ExpiryRing";
+import { useFeedback } from "../context/FeedbackContext";
 
 export default function ItemDetailScreen({ route, navigation }) {
   const { itemId } = route.params; // passed from the Pantry list
@@ -14,6 +15,7 @@ export default function ItemDetailScreen({ route, navigation }) {
   const [tip, setTip] = useState(""); // message shown by the ring's events
 
   const item = items.find((i) => i.id === itemId);
+  const { showMessage } = useFeedback();
   if (!item) {
     return (
       <View style={styles.center}>
@@ -32,6 +34,11 @@ export default function ItemDetailScreen({ route, navigation }) {
       status: newStatus,
       finishedDate: toISODate(new Date()),
     });
+    showMessage(
+      newStatus === "eaten"
+        ? `Nice! ${item.name} marked as eaten`
+        : `${item.name} marked as thrown away`,
+    );
     navigation.goBack();
   };
 

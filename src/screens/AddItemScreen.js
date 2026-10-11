@@ -14,6 +14,7 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import { toISODate, describeExpiry } from "../utils/dates";
 import { useItems } from "../context/ItemsContext";
 import { useCategories } from "../context/CategoriesContext";
+import { useFeedback } from "../context/FeedbackContext";
 
 export default function AddItemScreen({ navigation }) {
   const { addItem } = useItems();
@@ -29,6 +30,7 @@ export default function AddItemScreen({ navigation }) {
   const [showPicker, setShowPicker] = useState(false);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const { showMessage } = useFeedback();
 
   // "New category" dialog
   const [dialogVisible, setDialogVisible] = useState(false);
@@ -98,6 +100,7 @@ export default function AddItemScreen({ navigation }) {
         expiryDate: toISODate(expiry),
         photoUri: photoUri,
       });
+      showMessage(`${trimmedName} added to your pantry`);
       navigation.goBack();
     } catch {
       setError("Could not save the item. Please try again.");

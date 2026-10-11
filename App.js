@@ -7,21 +7,24 @@ import { CategoriesProvider } from "./src/context/CategoriesContext";
 import { ItemsProvider } from "./src/context/ItemsContext";
 import RootNavigator from "./src/navigation/RootNavigator";
 import { theme, navigationTheme } from "./src/theme";
+import { FeedbackProvider } from "./src/context/FeedbackContext";
 
 export default function App() {
   return (
     <SafeAreaProvider>
       <PaperProvider theme={theme}>
-        <AuthProvider>
-          <CategoriesProvider>
-            <ItemsProvider>
-              <NavigationContainer theme={navigationTheme}>
-                <RootNavigator />
-                <StatusBar style="dark" />
-              </NavigationContainer>
-            </ItemsProvider>
-          </CategoriesProvider>
-        </AuthProvider>
+        <FeedbackProvider>
+          <AuthProvider>
+            <CategoriesProvider>
+              <ItemsProvider>
+                <NavigationContainer theme={navigationTheme}>
+                  <RootNavigator />
+                  <StatusBar style="dark" />
+                </NavigationContainer>
+              </ItemsProvider>
+            </CategoriesProvider>
+          </AuthProvider>
+        </FeedbackProvider>
       </PaperProvider>
     </SafeAreaProvider>
   );
