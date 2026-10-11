@@ -102,7 +102,6 @@ export default function SettingsScreen() {
           }
           left={(p) => <List.Icon {...p} icon="bell-outline" />}
         />
-        ft={(p) => <List.Icon {...p} icon="bell-outline" />}
         <Button
           mode="outlined"
           icon="bell-ring-outline"

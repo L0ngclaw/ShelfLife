@@ -65,10 +65,7 @@ export default function ImpactScreen() {
 
         {month.topWaste ? (
           <Card style={styles.card}>
-            <Card.Title
-              title="Biggest source of waste"
-              left={(p) => <Card.Title title="Biggest source of waste" />}
-            />
+            <Card.Title title="Biggest source of waste" />
             <Card.Content>
               <Text variant="bodyMedium">
                 {month.topWaste.label}: {month.topWaste.co2Kg.toFixed(1)} kg CO₂
