@@ -1,8 +1,16 @@
 import { View, FlatList, StyleSheet } from "react-native";
-import { List, FAB, Text, ActivityIndicator, Avatar } from "react-native-paper";
+import {
+  List,
+  FAB,
+  Text,
+  ActivityIndicator,
+  Avatar,
+  Icon,
+} from "react-native-paper";
 import { useItems } from "../context/ItemsContext";
 import { useCategories } from "../context/CategoriesContext";
 import { describeExpiry } from "../utils/dates";
+import ExpiryRing from "../components/ExpiryRing";
 
 export default function PantryScreen({ navigation }) {
   const { items, loading } = useItems();
@@ -46,11 +54,17 @@ export default function PantryScreen({ navigation }) {
                   <List.Icon {...props} icon={cat.icon} />
                 )
               }
-              right={(props) =>
-                item.syncStatus === "pending" ? (
-                  <List.Icon {...props} icon="cloud-upload-outline" />
-                ) : null
-              }
+              right={() => (
+                <View style={styles.right}>
+                  {item.syncStatus === "pending" ? (
+                    <Icon source="cloud-upload-outline" size={16} />
+                  ) : null}
+                  <ExpiryRing
+                    purchaseDate={item.purchaseDate}
+                    expiryDate={item.expiryDate}
+                  />
+                </View>
+              )}
             />
           );
         }}
@@ -76,5 +90,6 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
   emptyList: { flexGrow: 1 },
+  right: { flexDirection: "row", alignItems: "center", gap: 8 },
   fab: { position: "absolute", right: 16, bottom: 16 },
 });
