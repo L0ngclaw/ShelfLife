@@ -26,3 +26,8 @@ export function describeExpiry(iso) {
   if (days === 1) return "Expires tomorrow";
   return `Expires in ${days} days`;
 }
+
+// Whole days between two 'YYYY-MM-DD' dates
+export function daysBetween(fromISO, toISO) {
+  return Math.round((parseISODate(toISO) - parseISODate(fromISO)) / 86400000);
+}
