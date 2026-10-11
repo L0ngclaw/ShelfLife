@@ -21,7 +21,7 @@ import ExpiryRing from "../components/ExpiryRing";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
 
 export default function PantryScreen({ navigation }) {
-  const { items, loading } = useItems();
+  const { items, loading, isOnline } = useItems();
   const { getCategory } = useCategories();
 
   const [legendVisible, setLegendVisible] = useState(false);
@@ -63,6 +63,14 @@ export default function PantryScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
+      {isOnline === false ? (
+        <View style={styles.offline} accessibilityRole="alert">
+          <Icon source="cloud-off-outline" size={18} color="#5D4037" />
+          <Text variant="bodySmall" style={styles.offlineText}>
+            Offline – changes are saved on this phone and will sync later
+          </Text>
+        </View>
+      ) : null}
       <Searchbar
         placeholder="Search by name or category"
         value={query}
@@ -108,6 +116,11 @@ export default function PantryScreen({ navigation }) {
         }}
         ListEmptyComponent={
           <View style={styles.center}>
+            <Icon
+              source={searchText ? "magnify" : "fridge-outline"}
+              size={64}
+              color="#9E9E9E"
+            />
             <Text variant="titleMedium">
               {searchText
                 ? "No items match your search"
@@ -161,4 +174,13 @@ const styles = StyleSheet.create({
   legendRow: { flexDirection: "row", alignItems: "center", marginBottom: 12 },
   dot: { width: 16, height: 16, borderRadius: 8, marginRight: 12 },
   legendText: { flex: 1 },
+  offline: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#FFF8E1",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  offlineText: { flex: 1, color: "#5D4037" },
 });

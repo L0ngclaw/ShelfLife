@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { StyleSheet, KeyboardAvoidingView, Platform } from "react-native";
-import { Text, TextInput, Button, HelperText } from "react-native-paper";
+import { View, StyleSheet, KeyboardAvoidingView, Platform } from "react-native";
+import { Text, TextInput, Button, HelperText, Icon } from "react-native-paper";
 import { useAuth, friendlyAuthError } from "../context/AuthContext";
 
 export default function LoginScreen({ navigation }) {
@@ -31,6 +31,9 @@ export default function LoginScreen({ navigation }) {
       style={styles.container}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
+      <View style={styles.logo}>
+        <Icon source="leaf" size={64} color="#2E7D32" />
+      </View>
       <Text variant="displaySmall" style={styles.title}>
         ShelfLife
       </Text>
@@ -81,4 +84,5 @@ const styles = StyleSheet.create({
   subtitle: { textAlign: "center", marginBottom: 32 },
   input: { marginBottom: 12 },
   link: { marginTop: 8 },
+  logo: { alignItems: "center", marginBottom: 8 },
 });
