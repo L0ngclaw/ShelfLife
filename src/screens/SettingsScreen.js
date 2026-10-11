@@ -3,7 +3,10 @@ import { Text, Button, List, Divider } from "react-native-paper";
 import { useAuth } from "../context/AuthContext";
 import { useItems } from "../context/ItemsContext";
 import { useState } from "react";
-import { sendTestReminder } from "../services/notificationService";
+import {
+  sendTestReminder,
+  remindersSupported,
+} from "../services/notificationService";
 
 const STATUS_TEXT = {
   idle: "Up to date",
@@ -18,12 +21,14 @@ export default function SettingsScreen() {
   const [reminderMsg, setReminderMsg] = useState("");
 
   const handleTestReminder = async () => {
-    const ok = await sendTestReminder();
-    setReminderMsg(
-      ok
-        ? "A test reminder will appear in 5 seconds."
-        : "Notifications are turned off for ShelfLife.",
-    );
+    const result = await sendTestReminder();
+    const messages = {
+      sent: "A test reminder will appear in 5 seconds.",
+      denied: "Notifications are turned off for ShelfLife.",
+      unsupported:
+        "Reminders are not available in Expo Go on Android. They work on iPhone and in the installed app.",
+    };
+    setReminderMsg(messages[result]);
   };
 
   const statusText =
@@ -90,9 +95,14 @@ export default function SettingsScreen() {
         <List.Subheader>Reminders</List.Subheader>
         <List.Item
           title="Expiry reminders"
-          description="9:00 the day before an item expires"
+          description={
+            remindersSupported
+              ? "9:00 the day before an item expires"
+              : "Not available in Expo Go on Android"
+          }
           left={(p) => <List.Icon {...p} icon="bell-outline" />}
         />
+        ft={(p) => <List.Icon {...p} icon="bell-outline" />}
         <Button
           mode="outlined"
           icon="bell-ring-outline"

@@ -1,22 +1,45 @@
-// Local notifications: remind the user the day before an item expires
-import * as Notifications from "expo-notifications";
+// Local notifications: remind the user the day before an item expires.
+//
+// Expo Go on Android (SDK 53+) no longer supports expo-notifications, so there
+// reminders are switched off instead of crashing. They work in Expo Go on iPhone
+// and in a real installed build (development or production build).
 import { Platform } from "react-native";
+import Constants, { ExecutionEnvironment } from "expo-constants";
 import { parseISODate } from "../utils/dates";
 
 const REMINDER_HOUR = 9; // 9:00 in the morning
 const CHANNEL_ID = "expiry";
 
-// Show reminders even while the app is open
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: false,
-    shouldSetBadge: false,
-  }),
-});
+const isExpoGoAndroid =
+  Platform.OS === "android" &&
+  Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 
-async function ensurePermission() {
+export const remindersSupported = !isExpoGoAndroid;
+
+// Load expo-notifications only when it is first needed (not at app start)
+let notificationsModule = null;
+async function getNotifications() {
+  if (!remindersSupported) return null;
+  if (!notificationsModule) {
+    try {
+      notificationsModule = await import("expo-notifications");
+      // Show reminders even while the app is open
+      notificationsModule.setNotificationHandler({
+        handleNotification: async () => ({
+          shouldShowBanner: true,
+          shouldShowList: true,
+          shouldPlaySound: false,
+          shouldSetBadge: false,
+        }),
+      });
+    } catch {
+      return null; // module not available on this device
+    }
+  }
+  return notificationsModule;
+}
+
+async function ensurePermission(Notifications) {
   if (Platform.OS === "android") {
     await Notifications.setNotificationChannelAsync(CHANNEL_ID, {
       name: "Expiry reminders",
@@ -37,7 +60,8 @@ export async function scheduleExpiryReminder(item) {
   if (when <= new Date()) return null; // too late to remind
 
   try {
-    if (!(await ensurePermission())) return null;
+    const Notifications = await getNotifications();
+    if (!Notifications || !(await ensurePermission(Notifications))) return null;
     return await Notifications.scheduleNotificationAsync({
       content: {
         title: "Eat it before it goes off",
@@ -57,15 +81,20 @@ export async function scheduleExpiryReminder(item) {
 export async function cancelReminder(reminderId) {
   if (!reminderId) return;
   try {
-    await Notifications.cancelScheduledNotificationAsync(reminderId);
+    const Notifications = await getNotifications();
+    if (Notifications)
+      await Notifications.cancelScheduledNotificationAsync(reminderId);
   } catch {
     // already fired or removed
   }
 }
 
-// For the demo: a reminder in 5 seconds
+// For the demo: a reminder in 5 seconds.
+// Returns 'sent', 'denied' or 'unsupported'
 export async function sendTestReminder() {
-  if (!(await ensurePermission())) return false;
+  const Notifications = await getNotifications();
+  if (!Notifications) return "unsupported";
+  if (!(await ensurePermission(Notifications))) return "denied";
   await Notifications.scheduleNotificationAsync({
     content: {
       title: "ShelfLife reminder test",
@@ -77,5 +106,5 @@ export async function sendTestReminder() {
       channelId: CHANNEL_ID,
     },
   });
-  return true;
+  return "sent";
 }
