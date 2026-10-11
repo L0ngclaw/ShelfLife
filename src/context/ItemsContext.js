@@ -1,14 +1,36 @@
-// State layer: holds the pantry items and shares them with every screen
-import { createContext, useContext, useEffect, useState } from "react";
+// State layer: holds the pantry items, saves them on the phone (offline-first)
+// and syncs them with Firestore when online
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useEffectEvent,
+  useRef,
+  useState,
+} from "react";
 import { useAuth } from "./AuthContext";
 import { loadItems, saveItems, createId } from "../services/itemStorage";
+import {
+  pushPendingItems,
+  pullRemoteItems,
+  mergeItems,
+} from "../services/syncService";
+import { withRetry } from "../utils/retry";
+import { useNetworkStatus } from "../hooks/useNetworkStatus";
 
 const ItemsContext = createContext(null);
+const SYNC_DELAY_MS = 2000; // wait for more changes, then upload them together
 
 export function ItemsProvider({ children }) {
   const { user } = useAuth();
-  // Remember WHICH user the loaded items belong to
+  const isOnline = useNetworkStatus();
   const [data, setData] = useState({ uid: null, items: [] });
+  const [sync, setSync] = useState({
+    status: "idle",
+    lastSyncedAt: null,
+    error: null,
+  });
+  const syncing = useRef(false); // stops two syncs running at the same time
 
   // Load this user's items from the phone whenever the user changes
   useEffect(() => {
@@ -21,15 +43,63 @@ export function ItemsProvider({ children }) {
       .catch(() => {
         if (!cancelled) setData({ uid: user.uid, items: [] });
       });
-    // If the user changes before loading finishes, ignore the old result
     return () => {
       cancelled = true;
     };
   }, [user]);
 
-  // Worked out on every render instead of being stored as extra state
-  const items = user && data.uid === user.uid ? data.items : [];
-  const loading = !!user && data.uid !== user.uid;
+  const loaded = !!user && data.uid === user.uid;
+  const items = loaded ? data.items : [];
+  const loading = !!user && !loaded;
+  const pendingCount = items.filter((i) => i.syncStatus === "pending").length;
+
+  // Push pending changes, pull the cloud copy, merge, save on the phone
+  const syncNow = async () => {
+    if (!user || syncing.current) return;
+    if (isOnline !== true) {
+      setSync((s) => ({ ...s, status: "offline" }));
+      return;
+    }
+    const uid = user.uid;
+    syncing.current = true;
+    setSync((s) => ({ ...s, status: "syncing", error: null }));
+    try {
+      await withRetry(async () => {
+        const local = await loadItems(uid);
+        const pushed = await pushPendingItems(uid, local);
+        const remote = await pullRemoteItems(uid);
+        const latestLocal = await loadItems(uid); // include changes made during the network calls
+        const merged = mergeItems(latestLocal, remote, pushed);
+        await saveItems(uid, merged);
+        setData({ uid, items: merged });
+      });
+      setSync({
+        status: "idle",
+        lastSyncedAt: new Date().toISOString(),
+        error: null,
+      });
+    } catch (e) {
+      setSync((s) => ({ ...s, status: "error", error: e.message }));
+    } finally {
+      syncing.current = false;
+    }
+  };
+
+  const runSync = useEffectEvent(() => {
+    syncNow();
+  });
+
+  // Sync when the items are loaded and every time the phone comes back online
+  useEffect(() => {
+    if (loaded && isOnline === true) runSync();
+  }, [loaded, isOnline]);
+
+  // When there are pending changes, wait a moment (to batch them) and then sync
+  useEffect(() => {
+    if (!loaded || isOnline !== true || pendingCount === 0) return;
+    const timer = setTimeout(() => runSync(), SYNC_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [loaded, isOnline, pendingCount]);
 
   // Update the screen and save to the phone (offline-first)
   const persist = async (nextItems) => {
@@ -63,7 +133,18 @@ export function ItemsProvider({ children }) {
   };
 
   return (
-    <ItemsContext.Provider value={{ items, loading, addItem, updateItem }}>
+    <ItemsContext.Provider
+      value={{
+        items,
+        loading,
+        addItem,
+        updateItem,
+        sync,
+        syncNow,
+        pendingCount,
+        isOnline,
+      }}
+    >
       {children}
     </ItemsContext.Provider>
   );
