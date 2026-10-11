@@ -17,6 +17,10 @@ import {
 } from "../services/syncService";
 import { withRetry } from "../utils/retry";
 import { useNetworkStatus } from "../hooks/useNetworkStatus";
+import {
+  scheduleExpiryReminder,
+  cancelReminder,
+} from "../services/notificationService";
 
 const ItemsContext = createContext(null);
 const SYNC_DELAY_MS = 2000; // wait for more changes, then upload them together
@@ -117,16 +121,30 @@ export function ItemsProvider({ children }) {
       updatedAt: now,
       syncStatus: "pending", // not in the cloud yet
     };
+    item.reminderId = await scheduleExpiryReminder(item); // local to this phone
     await persist([...items, item]);
     return item;
   };
 
   const updateItem = async (id, changes) => {
     const now = new Date().toISOString();
+    const target = items.find((i) => i.id === id);
+    let extra = {};
+    // Item eaten or thrown away -> its reminder is no longer needed
+    if (target?.reminderId && changes.status && changes.status !== "active") {
+      await cancelReminder(target.reminderId);
+      extra = { reminderId: null };
+    }
     await persist(
       items.map((i) =>
         i.id === id
-          ? { ...i, ...changes, updatedAt: now, syncStatus: "pending" }
+          ? {
+              ...i,
+              ...changes,
+              ...extra,
+              updatedAt: now,
+              syncStatus: "pending",
+            }
           : i,
       ),
     );

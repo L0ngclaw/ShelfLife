@@ -2,6 +2,8 @@ import { View, StyleSheet } from "react-native";
 import { Text, Button, List, Divider } from "react-native-paper";
 import { useAuth } from "../context/AuthContext";
 import { useItems } from "../context/ItemsContext";
+import { useState } from "react";
+import { sendTestReminder } from "../services/notificationService";
 
 const STATUS_TEXT = {
   idle: "Up to date",
@@ -13,6 +15,16 @@ const STATUS_TEXT = {
 export default function SettingsScreen() {
   const { user, logout } = useAuth();
   const { sync, syncNow, pendingCount, isOnline } = useItems();
+  const [reminderMsg, setReminderMsg] = useState("");
+
+  const handleTestReminder = async () => {
+    const ok = await sendTestReminder();
+    setReminderMsg(
+      ok
+        ? "A test reminder will appear in 5 seconds."
+        : "Notifications are turned off for ShelfLife.",
+    );
+  };
 
   const statusText =
     isOnline === false ? STATUS_TEXT.offline : STATUS_TEXT[sync.status];
@@ -74,6 +86,28 @@ export default function SettingsScreen() {
         </Button>
       </List.Section>
 
+      <List.Section>
+        <List.Subheader>Reminders</List.Subheader>
+        <List.Item
+          title="Expiry reminders"
+          description="9:00 the day before an item expires"
+          left={(p) => <List.Icon {...p} icon="bell-outline" />}
+        />
+        <Button
+          mode="outlined"
+          icon="bell-ring-outline"
+          onPress={handleTestReminder}
+          style={styles.button}
+        >
+          Send test reminder
+        </Button>
+        {reminderMsg ? (
+          <Text variant="bodySmall" style={styles.note}>
+            {reminderMsg}
+          </Text>
+        ) : null}
+      </List.Section>
+
       <Button
         mode="outlined"
         icon="logout"
@@ -90,4 +124,5 @@ const styles = StyleSheet.create({
   container: { flex: 1, padding: 8 },
   button: { marginHorizontal: 16, marginTop: 8 },
   error: { marginHorizontal: 16, color: "#C62828" },
+  note: { marginHorizontal: 16, marginTop: 4, color: "#616161" },
 });
