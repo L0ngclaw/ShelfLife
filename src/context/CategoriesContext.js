@@ -1,5 +1,11 @@
-// State layer: built-in categories + the user's own categories
-import { createContext, useContext, useEffect, useState } from "react";
+// State layer: built-in categories + the user's own categories (synced to the cloud)
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useEffectEvent,
+  useState,
+} from "react";
 import { useAuth } from "./AuthContext";
 import { CATEGORIES } from "../constants/categories";
 import {
@@ -7,15 +13,19 @@ import {
   saveCustomCategories,
 } from "../services/categoryStorage";
 import { createId } from "../services/itemStorage";
+import { syncCategories } from "../services/syncService";
+import { useNetworkStatus } from "../hooks/useNetworkStatus";
 
 const CategoriesContext = createContext(null);
 const OTHER = CATEGORIES.find((c) => c.key === "other");
 
 export function CategoriesProvider({ children }) {
   const { user } = useAuth();
+  const isOnline = useNetworkStatus();
   // Remember WHICH user the custom categories belong to
   const [data, setData] = useState({ uid: null, list: [] });
 
+  // Load this user's categories from the phone
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
@@ -31,8 +41,34 @@ export function CategoriesProvider({ children }) {
     };
   }, [user]);
 
-  const customCategories = user && data.uid === user.uid ? data.list : [];
+  const loaded = !!user && data.uid === user.uid;
+  const customCategories = loaded ? data.list : [];
   const categories = [...CATEGORIES, ...customCategories];
+
+  // Merge this phone's categories with the cloud copy and save the result on the phone.
+  // It only RETURNS the merged list; the effect below puts it into state.
+  const syncCategoriesNow = useEffectEvent(async () => {
+    const uid = user.uid;
+    const merged = await syncCategories(uid, customCategories);
+    await saveCustomCategories(uid, merged);
+    return { uid, merged };
+  });
+
+  // Sync when loaded, when back online, and when a category is added
+  useEffect(() => {
+    if (!loaded || isOnline !== true) return;
+    let cancelled = false;
+    syncCategoriesNow()
+      .then(({ uid, merged }) => {
+        if (!cancelled) setData({ uid, list: merged }); // setState in a callback = allowed
+      })
+      .catch(() => {
+        // Offline or failed: categories stay on the phone and sync next time
+      });
+    return () => {
+      cancelled = true; // ignore a late result if things changed meanwhile
+    };
+  }, [loaded, isOnline, customCategories.length]);
 
   const getCategory = (key) => categories.find((c) => c.key === key) ?? OTHER;
 
