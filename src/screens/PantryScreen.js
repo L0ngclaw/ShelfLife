@@ -1,3 +1,4 @@
+import { useLayoutEffect, useState } from "react";
 import { View, FlatList, StyleSheet } from "react-native";
 import {
   List,
@@ -6,15 +7,35 @@ import {
   ActivityIndicator,
   Avatar,
   Icon,
+  IconButton,
+  Portal,
+  Dialog,
+  Button,
 } from "react-native-paper";
 import { useItems } from "../context/ItemsContext";
 import { useCategories } from "../context/CategoriesContext";
 import { describeExpiry } from "../utils/dates";
+import { EXPIRY_LEVELS } from "../utils/expiryStatus";
 import ExpiryRing from "../components/ExpiryRing";
 
 export default function PantryScreen({ navigation }) {
   const { items, loading } = useItems();
   const { getCategory } = useCategories();
+
+  const [legendVisible, setLegendVisible] = useState(false);
+
+  // Put an (i) button in the Pantry header that opens the colour legend
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <IconButton
+          icon="information-outline"
+          onPress={() => setLegendVisible(true)}
+          accessibilityLabel="What do the colours mean?"
+        />
+      ),
+    });
+  }, [navigation]);
 
   // Only items still in the pantry, soonest expiry first
   const pantry = items
@@ -76,6 +97,28 @@ export default function PantryScreen({ navigation }) {
         }
         contentContainerStyle={pantry.length === 0 && styles.emptyList}
       />
+      <Portal>
+        <Dialog
+          visible={legendVisible}
+          onDismiss={() => setLegendVisible(false)}
+        >
+          <Dialog.Title>What do the colours mean?</Dialog.Title>
+          <Dialog.Content>
+            {Object.values(EXPIRY_LEVELS).map((l) => (
+              <View key={l.level} style={styles.legendRow}>
+                <View style={[styles.dot, { backgroundColor: l.color }]} />
+                <View style={styles.legendText}>
+                  <Text variant="titleSmall">{l.title}</Text>
+                  <Text variant="bodySmall">{l.description}</Text>
+                </View>
+              </View>
+            ))}
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setLegendVisible(false)}>Got it</Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
       <FAB
         icon="plus"
         style={styles.fab}
@@ -92,4 +135,7 @@ const styles = StyleSheet.create({
   emptyList: { flexGrow: 1 },
   right: { flexDirection: "row", alignItems: "center", gap: 8 },
   fab: { position: "absolute", right: 16, bottom: 16 },
+  legendRow: { flexDirection: "row", alignItems: "center", marginBottom: 12 },
+  dot: { width: 16, height: 16, borderRadius: 8, marginRight: 12 },
+  legendText: { flex: 1 },
 });
