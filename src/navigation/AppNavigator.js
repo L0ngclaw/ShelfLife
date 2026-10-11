@@ -3,6 +3,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import PantryScreen from "../screens/PantryScreen";
 import ImpactScreen from "../screens/ImpactScreen";
 import SettingsScreen from "../screens/SettingsScreen";
+import { theme } from "../theme";
 
 const Tab = createBottomTabNavigator();
 
@@ -16,7 +17,7 @@ export default function AppNavigator() {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
-        tabBarActiveTintColor: "#2E7D32",
+        tabBarActiveTintColor: theme.colors.primary,
         tabBarIcon: ({ color, size }) => (
           <MaterialCommunityIcons
             name={ICONS[route.name]}

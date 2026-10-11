@@ -3,20 +3,21 @@ import { PaperProvider } from "react-native-paper";
 import { NavigationContainer } from "@react-navigation/native";
 import { StatusBar } from "expo-status-bar";
 import { AuthProvider } from "./src/context/AuthContext";
-import RootNavigator from "./src/navigation/RootNavigator";
-import { ItemsProvider } from "./src/context/ItemsContext";
 import { CategoriesProvider } from "./src/context/CategoriesContext";
+import { ItemsProvider } from "./src/context/ItemsContext";
+import RootNavigator from "./src/navigation/RootNavigator";
+import { theme, navigationTheme } from "./src/theme";
 
 export default function App() {
   return (
     <SafeAreaProvider>
-      <PaperProvider>
+      <PaperProvider theme={theme}>
         <AuthProvider>
           <CategoriesProvider>
             <ItemsProvider>
-              <NavigationContainer>
+              <NavigationContainer theme={navigationTheme}>
                 <RootNavigator />
-                <StatusBar style="auto" />
+                <StatusBar style="dark" />
               </NavigationContainer>
             </ItemsProvider>
           </CategoriesProvider>
