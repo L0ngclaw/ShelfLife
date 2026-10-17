@@ -150,7 +150,7 @@ export default function AddItemScreen({ navigation, route }) {
     setSaving(true);
     try {
       await addItem({ ...itemData, photoUri });
-      showMessage(`${trimmedName} added to your pantry`);
+      showMessage(`${trimmedName} added to your shelf`);
       navigation.goBack();
     } catch {
       setError("Could not save the item. Please try again.");
@@ -291,7 +291,7 @@ export default function AddItemScreen({ navigation, route }) {
             <View style={styles.switchText}>
               <Text variant="titleSmall">Family shelf</Text>
               <Text variant="bodySmall">
-                Share with {household.name} instead of your private pantry
+                Share with {household.name} instead of your personal shelf
               </Text>
             </View>
             <Switch value={toFamilyShelf} onValueChange={setToFamilyShelf} />

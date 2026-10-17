@@ -65,7 +65,7 @@ export default function ImpactScreen() {
         <Text variant="bodySmall" style={styles.scopeNote}>
           {showFamily
             ? `Family shelf of ${household.name} – everyone's eaten and thrown-away items`
-            : "Your private pantry"}
+            : "Your personal shelf"}
         </Text>
 
         <Card style={styles.card}>

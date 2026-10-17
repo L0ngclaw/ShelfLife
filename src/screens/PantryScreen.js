@@ -164,7 +164,7 @@ export default function PantryScreen({ navigation }) {
           <View style={styles.center}>
             <Icon source={isFiltering ? "magnify" : "fridge-outline"} size={64} color="#9E9E9E" />
             <Text variant="titleMedium">
-              {isFiltering ? "No items match your search" : "Your pantry is empty"}
+              {isFiltering ? "No items match your search" : "Your shelf is empty"}
             </Text>
             {!isFiltering && <Text variant="bodyMedium">Tap + to add your first item.</Text>}
           </View>

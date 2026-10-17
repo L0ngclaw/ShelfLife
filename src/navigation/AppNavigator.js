@@ -32,7 +32,7 @@ export default function AppNavigator() {
         ),
       })}
     >
-      <Tab.Screen name="Pantry" component={PantryScreen} />
+      <Tab.Screen name="Pantry" component={PantryScreen} options={{ title: "My Shelf" }} />
       <Tab.Screen
         name="Family"
         component={FamilyScreen}
