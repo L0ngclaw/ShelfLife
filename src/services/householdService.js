@@ -32,6 +32,7 @@ function toPlain(snapshotDoc) {
     id: snapshotDoc.id,
     ...data,
     createdAtMs: data.createdAt?.toMillis?.() ?? Date.now(),
+    lastActionAtMs: data.lastAction?.at?.toMillis?.() ?? 0,
     pending: snapshotDoc.metadata.hasPendingWrites,
   };
 }
@@ -106,28 +107,36 @@ export async function declineInvite(invite) {
 
 // ---------- Requests ("Pubudu asked Mum: buy milk") ----------
 
-// Real-time: latest 50 requests. onChange(list, newlyAdded)
+// Real-time: latest 50 requests. onChange(list, newlyAdded, changed)
 export function listenToRequests(hid, onChange, onError) {
   const q = query(requestsOf(hid), orderBy("createdAt", "desc"), limit(50));
   return onSnapshot(
     q,
     { includeMetadataChanges: true }, // also tells us when "Sending..." finishes
     (snap) => {
-      const added = snap
-        .docChanges()
-        .filter((c) => c.type === "added")
-        .map((c) => toPlain(c.doc));
-      onChange(snap.docs.map(toPlain), added);
+      const changes = snap.docChanges();
+      const added = changes.filter((c) => c.type === "added").map((c) => toPlain(c.doc));
+      const changed = changes.filter((c) => c.type === "modified").map((c) => toPlain(c.doc));
+      onChange(snap.docs.map(toPlain), added, changed);
     },
     onError,
   );
 }
 
+// Who did what last (bought / declined / forwarded) - used for notifications
+const actionBy = (user, type) => ({
+  type,
+  byUid: user.uid,
+  byName: displayName(user.email),
+  at: serverTimestamp(),
+});
+
 // Writes are NOT awaited by the screens: when offline, Firestore keeps the
 // write in a queue, shows it immediately (pending) and sends it when online.
-export function sendRequest(hid, user, { text, toUid, toName }) {
+export function sendRequest(hid, user, { text, note, toUid, toName }) {
   return setDoc(doc(requestsOf(hid)), {
     text: text.trim(),
+    note: note?.trim() || null, // optional message, e.g. "the low-fat one please"
     fromUid: user.uid,
     fromName: displayName(user.email),
     toUid: toUid ?? null, // null = anyone in the family
@@ -143,6 +152,26 @@ export function completeRequest(hid, requestId, user) {
     doneByUid: user.uid,
     doneByName: displayName(user.email),
     doneAt: serverTimestamp(),
+    lastAction: actionBy(user, "bought"),
+  });
+}
+
+// The person a request was sent to can say no
+export function declineRequest(hid, requestId, user) {
+  return updateDoc(doc(requestsOf(hid), requestId), {
+    status: "declined",
+    declinedByName: displayName(user.email),
+    lastAction: actionBy(user, "declined"),
+  });
+}
+
+// ...or pass it on to another member
+export function forwardRequest(hid, requestId, user, toUid, toName) {
+  return updateDoc(doc(requestsOf(hid), requestId), {
+    toUid,
+    toName,
+    forwardedByName: displayName(user.email),
+    lastAction: actionBy(user, "forwarded"),
   });
 }
 
@@ -174,6 +203,7 @@ export function addToShelf(hid, user, item) {
     weightKg: item.weightKg,
     unit: item.unit ?? "kg",
     quantity: item.quantity ?? null,
+    weightPerItemKg: item.weightPerItemKg ?? null,
     purchaseDate: item.purchaseDate,
     expiryDate: item.expiryDate,
     status: "active",

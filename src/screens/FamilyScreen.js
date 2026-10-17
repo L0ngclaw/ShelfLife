@@ -24,6 +24,7 @@ import { useFeedback } from "../context/FeedbackContext";
 import { describeExpiry, timeAgo } from "../utils/dates";
 import ExpiryRing from "../components/ExpiryRing";
 import { formatAmount } from "../utils/amount";
+import { theme } from "../theme";
 
 export default function FamilyScreen({ navigation }) {
   const { user } = useAuth();
@@ -34,6 +35,8 @@ export default function FamilyScreen({ navigation }) {
   const [inviteEmail, setInviteEmail] = useState("");
   const [requestText, setRequestText] = useState("");
   const [requestFor, setRequestFor] = useState(null); // null = anyone
+  const [requestNote, setRequestNote] = useState(""); // optional message
+  const [forwarding, setForwarding] = useState(null); // request being forwarded
   const [selectedShelfItem, setSelectedShelfItem] = useState(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -66,8 +69,9 @@ export default function FamilyScreen({ navigation }) {
   const handleSendRequest = () => {
     setError("");
     try {
-      queueWrite(h.sendRequest(requestText, requestFor));
+      queueWrite(h.sendRequest(requestText, requestFor, requestNote));
       setRequestText("");
+      setRequestNote("");
       showMessage(
         h.isOnline === false
           ? "Saved – it will be sent when you're back online"
@@ -77,6 +81,26 @@ export default function FamilyScreen({ navigation }) {
       setError(e.message); // validation error
     }
   };
+
+  const handleDecline = (request) => {
+    queueWrite(h.declineRequest(request));
+    showMessage(`You declined "${request.text}"`);
+  };
+
+  const handleForward = (toUid) => {
+    const request = forwarding;
+    setForwarding(null);
+    queueWrite(h.forwardRequest(request, toUid));
+    showMessage(`"${request.text}" passed to ${h.memberNames[toUid]}`);
+  };
+
+  // Chip style: solid green with white text when selected, so the choice is obvious
+  const chipProps = (selected) => ({
+    selected,
+    showSelectedCheck: false,
+    selectedColor: selected ? theme.colors.onPrimary : undefined,
+    style: [styles.chip, selected && styles.chipSelected],
+  });
 
   const handleBought = (request) => {
     queueWrite(h.markBought(request));
@@ -213,26 +237,25 @@ export default function FamilyScreen({ navigation }) {
                   onChangeText={setRequestText}
                   maxLength={60}
                 />
+                <TextInput
+                  label="Message (optional)"
+                  placeholder="e.g. The low-fat one, please"
+                  mode="outlined"
+                  value={requestNote}
+                  onChangeText={setRequestNote}
+                  maxLength={120}
+                  multiline
+                  style={styles.noteInput}
+                />
                 <Text variant="labelMedium" style={styles.forLabel}>
                   Ask
                 </Text>
                 <View style={styles.chips}>
-                  <Chip
-                    selected={requestFor === null}
-                    showSelectedCheck={false}
-                    onPress={() => setRequestFor(null)}
-                    style={styles.chip}
-                  >
+                  <Chip {...chipProps(requestFor === null)} onPress={() => setRequestFor(null)}>
                     Anyone
                   </Chip>
                   {otherMembers.map(([uid, name]) => (
-                    <Chip
-                      key={uid}
-                      selected={requestFor === uid}
-                      showSelectedCheck={false}
-                      onPress={() => setRequestFor(uid)}
-                      style={styles.chip}
-                    >
+                    <Chip key={uid} {...chipProps(requestFor === uid)} onPress={() => setRequestFor(uid)}>
                       {name}
                     </Chip>
                   ))}
@@ -253,30 +276,63 @@ export default function FamilyScreen({ navigation }) {
 
             {sortedRequests.map((r) => {
               const open = r.status === "open";
+              const declined = r.status === "declined";
+              const forMe = r.toUid === user.uid;
               const fromName = r.fromUid === user.uid ? "You" : r.fromName;
-              const toName = !r.toUid ? "anyone" : r.toUid === user.uid ? "you" : r.toName;
+              const toName = !r.toUid ? "anyone" : forMe ? "you" : r.toName;
+              const forwarded = r.forwardedByName ? ` · passed on by ${r.forwardedByName}` : "";
+              const status = r.pending
+                ? "Sending…"
+                : open
+                  ? `${timeAgo(r.createdAtMs)} · Open${forwarded}`
+                  : declined
+                    ? `✗ Declined by ${r.declinedByName}`
+                    : `✓ Bought by ${r.doneByUid === user.uid ? "you" : r.doneByName}`;
               return (
                 <Card key={r.id} style={[styles.card, !open && styles.done]}>
                   <Card.Title
                     title={`${fromName} asked ${toName}: ${r.text}`}
                     titleNumberOfLines={2}
-                    subtitle={
-                      r.pending
-                        ? "Sending…"
-                        : open
-                          ? `${timeAgo(r.createdAtMs)} · Open`
-                          : `✓ Bought by ${r.doneByUid === user.uid ? "you" : r.doneByName}`
-                    }
+                    subtitle={status}
+                    subtitleNumberOfLines={2}
                     left={(p) => (
                       <List.Icon
                         {...p}
-                        icon={r.pending ? "clock-outline" : open ? "cart-outline" : "check-circle-outline"}
+                        icon={
+                          r.pending
+                            ? "clock-outline"
+                            : open
+                              ? "cart-outline"
+                              : declined
+                                ? "close-circle-outline"
+                                : "check-circle-outline"
+                        }
                       />
                     )}
                   />
+                  {r.note ? (
+                    <Card.Content>
+                      <View style={styles.note}>
+                        <Icon source="message-text-outline" size={16} color="#616161" />
+                        <Text variant="bodyMedium" style={styles.noteText}>
+                          {r.note}
+                        </Text>
+                      </View>
+                    </Card.Content>
+                  ) : null}
                   <Card.Actions>
+                    {open && forMe ? (
+                      <Button icon="close" onPress={() => handleDecline(r)}>
+                        Decline
+                      </Button>
+                    ) : null}
+                    {open && forMe && otherMembers.length > 0 ? (
+                      <Button icon="share-outline" onPress={() => setForwarding(r)}>
+                        Forward
+                      </Button>
+                    ) : null}
                     {open ? (
-                      <Button icon="check" onPress={() => handleBought(r)}>
+                      <Button mode={forMe ? "contained" : "text"} icon="check" onPress={() => handleBought(r)}>
                         Bought
                       </Button>
                     ) : null}
@@ -285,7 +341,7 @@ export default function FamilyScreen({ navigation }) {
                         icon="fridge-outline"
                         onPress={() => navigation.navigate("AddItem", { presetName: r.text })}
                       >
-                        Add to pantry
+                        Add to my shelf
                       </Button>
                     ) : null}
                   </Card.Actions>
@@ -384,6 +440,26 @@ export default function FamilyScreen({ navigation }) {
       </ScrollView>
 
       <Portal>
+        <Dialog visible={!!forwarding} onDismiss={() => setForwarding(null)}>
+          <Dialog.Title>Pass this request on</Dialog.Title>
+          <Dialog.Content>
+            <Text variant="bodyMedium" style={styles.forwardText}>
+              Who should get “{forwarding?.text}”?
+            </Text>
+            {otherMembers.map(([uid, name]) => (
+              <List.Item
+                key={uid}
+                title={name}
+                left={(p) => <List.Icon {...p} icon="account-arrow-right-outline" />}
+                onPress={() => handleForward(uid)}
+              />
+            ))}
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setForwarding(null)}>Cancel</Button>
+          </Dialog.Actions>
+        </Dialog>
+
         <Dialog visible={!!selectedShelfItem} onDismiss={() => setSelectedShelfItem(null)}>
           <Dialog.Title>{selectedShelfItem?.name}</Dialog.Title>
           <Dialog.Content>
@@ -413,6 +489,11 @@ const styles = StyleSheet.create({
   forLabel: { marginTop: 12, marginBottom: 6 },
   chips: { flexDirection: "row", flexWrap: "wrap" },
   chip: { marginRight: 8, marginBottom: 8 },
+  chipSelected: { backgroundColor: theme.colors.primary },
+  noteInput: { marginTop: 8 },
+  note: { flexDirection: "row", gap: 8, backgroundColor: "#F1F8E9", borderRadius: 8, padding: 8 },
+  noteText: { flex: 1, fontStyle: "italic" },
+  forwardText: { marginBottom: 8 },
   hint: { textAlign: "center", color: "#616161", marginVertical: 8 },
   ring: { marginRight: 12 },
   offline: {

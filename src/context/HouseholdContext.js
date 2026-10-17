@@ -23,6 +23,8 @@ import {
   declineInvite,
   sendRequest,
   completeRequest,
+  declineRequest,
+  forwardRequest,
   addToShelf,
   finishShelfItem,
 } from "../services/householdService";
@@ -87,18 +89,40 @@ export function HouseholdProvider({ children }) {
       byUid !== uid && !x.pending && Date.now() - x.createdAtMs < RECENT_MS;
     let firstRequests = true;
     let firstShelf = true;
+    const announced = new Set(); // so the same change is never announced twice
 
     const stopRequests = listenToRequests(
       householdId,
-      (list, added) => {
+      (list, added, changed) => {
         setRequestData({ hid: householdId, list });
         if (firstRequests) {
           firstRequests = false; // don't announce what was already there
           return;
         }
+        // New request for me (or for anyone)
         added
           .filter((r) => isNewFromOthers(r, r.fromUid) && (!r.toUid || r.toUid === uid))
-          .forEach((r) => announce(`${r.fromName} asked ${r.toUid ? "you" : "the family"}`, r.text));
+          .forEach((r) =>
+            announce(
+              `${r.fromName} asked ${r.toUid ? "you" : "the family"}`,
+              r.note ? `${r.text} – "${r.note}"` : r.text,
+            ),
+          );
+        // Someone else bought / declined / forwarded a request that concerns me
+        changed.forEach((r) => {
+          const action = r.lastAction;
+          if (!action || action.byUid === uid || r.pending) return;
+          if (Date.now() - r.lastActionAtMs > RECENT_MS) return;
+          const key = `${r.id}:${r.lastActionAtMs}`;
+          if (announced.has(key)) return;
+          announced.add(key);
+          if (action.type === "forwarded" && r.toUid === uid)
+            announce(`${action.byName} passed a request to you`, r.text);
+          else if (action.type === "declined" && r.fromUid === uid)
+            announce(`${action.byName} can't get it`, r.text);
+          else if (action.type === "bought" && r.fromUid === uid)
+            announce(`${action.byName} bought it`, r.text);
+        });
       },
       () => setRequestData({ hid: householdId, list: [] }),
     );
@@ -166,17 +190,22 @@ export function HouseholdProvider({ children }) {
     },
 
     // The writes below work offline: Firestore queues them and they show as "pending".
-    sendRequest: (text, toUid) => {
+    sendRequest: (text, toUid, note = "") => {
       const clean = text.trim();
       if (clean.length < 2 || clean.length > 60)
         throw new Error("Request must be 2–60 characters.");
+      if (note.trim().length > 120) throw new Error("Message must be 120 characters or less.");
       return sendRequest(householdId, user, {
         text: clean,
+        note,
         toUid,
         toName: toUid ? memberNames[toUid] : null,
       });
     },
     markBought: (request) => completeRequest(householdId, request.id, user),
+    declineRequest: (request) => declineRequest(householdId, request.id, user),
+    forwardRequest: (request, toUid) =>
+      forwardRequest(householdId, request.id, user, toUid, memberNames[toUid]),
     addToShelf: (item) => addToShelf(householdId, user, item),
     finishShelfItem: (item, status) =>
       finishShelfItem(householdId, item.id, user, status, toISODate(new Date())),
