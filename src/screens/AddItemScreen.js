@@ -20,7 +20,7 @@ import { useItems } from "../context/ItemsContext";
 import { useCategories } from "../context/CategoriesContext";
 import { useFeedback } from "../context/FeedbackContext";
 import { useHousehold } from "../context/HouseholdContext";
-import { DEFAULT_PIECE_KG, CUSTOM_CATEGORY_ICONS } from "../constants/categories";
+import { CUSTOM_CATEGORY_ICONS } from "../constants/categories";
 import { theme } from "../theme";
 
 export default function AddItemScreen({ navigation, route }) {
@@ -35,6 +35,7 @@ export default function AddItemScreen({ navigation, route }) {
   const [unit, setUnit] = useState("kg"); // "kg" = by weight, "pcs" = by count
   const [weight, setWeight] = useState("1");
   const [quantity, setQuantity] = useState("1");
+  const [weightEach, setWeightEach] = useState("0.1"); // kg per piece
   const [expiry, setExpiry] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() + 7); // default: one week from today
@@ -103,8 +104,9 @@ export default function AddItemScreen({ navigation, route }) {
 
     if (!trimmedName) return setError("Please enter a name.");
 
-    let weightKg;
+    let weightKg = null;
     let count = null;
+    let perItemKg = null;
     if (unit === "kg") {
       weightKg = parseFloat(weight.replace(",", "."));
       if (isNaN(weightKg) || weightKg <= 0 || weightKg > 50)
@@ -113,8 +115,11 @@ export default function AddItemScreen({ navigation, route }) {
       count = Number(quantity);
       if (!Number.isInteger(count) || count < 1 || count > 99)
         return setError("Count must be a whole number from 1 to 99.");
-      // Estimated weight, so the CO2 numbers still work for counted items
-      weightKg = Math.round(count * (cat.pieceKg ?? DEFAULT_PIECE_KG) * 100) / 100;
+      // Weight of one item is required, so we always know the total weight
+      perItemKg = parseFloat(weightEach.replace(",", "."));
+      if (isNaN(perItemKg) || perItemKg <= 0 || perItemKg > 20)
+        return setError("Weight each must be between 0 and 20 kg.");
+      weightKg = Math.round(count * perItemKg * 100) / 100;
     }
 
     if (expiry < today) return setError("Expiry date cannot be in the past.");
@@ -126,6 +131,7 @@ export default function AddItemScreen({ navigation, route }) {
       weightKg,
       unit,
       quantity: count,
+      weightPerItemKg: perItemKg,
       purchaseDate: toISODate(new Date()),
       expiryDate: toISODate(expiry),
     };
@@ -153,6 +159,14 @@ export default function AddItemScreen({ navigation, route }) {
   };
 
   const expiryISO = toISODate(expiry);
+
+  // Live total for "by count", e.g. "Total: 6 pcs × 0.2 kg = 1.2 kg"
+  const countValue = Number(quantity);
+  const eachValue = parseFloat(weightEach.replace(",", "."));
+  const totalText =
+    Number.isInteger(countValue) && countValue > 0 && eachValue > 0
+      ? `Total: ${countValue} pcs × ${eachValue} kg = ${Math.round(countValue * eachValue * 100) / 100} kg`
+      : "Enter how many and the weight of one item.";
 
   return (
     // This screen is shown as a modal; Portal.Host makes its dialogs appear
@@ -230,15 +244,31 @@ export default function AddItemScreen({ navigation, route }) {
             style={styles.input}
           />
         ) : (
-          <TextInput
-            label="How many?"
-            mode="outlined"
-            value={quantity}
-            onChangeText={setQuantity}
-            keyboardType="number-pad"
-            right={<TextInput.Affix text="pcs" />}
-            style={styles.input}
-          />
+          <>
+            <View style={styles.row}>
+              <TextInput
+                label="How many?"
+                mode="outlined"
+                value={quantity}
+                onChangeText={setQuantity}
+                keyboardType="number-pad"
+                right={<TextInput.Affix text="pcs" />}
+                style={[styles.input, styles.half]}
+              />
+              <TextInput
+                label="Weight each"
+                mode="outlined"
+                value={weightEach}
+                onChangeText={setWeightEach}
+                keyboardType="decimal-pad"
+                right={<TextInput.Affix text="kg" />}
+                style={[styles.input, styles.half]}
+              />
+            </View>
+            <HelperText type="info" visible style={styles.total}>
+              {totalText}
+            </HelperText>
+          </>
         )}
 
         <Text variant="titleSmall" style={styles.label}>
@@ -373,6 +403,9 @@ const styles = StyleSheet.create({
   switchRow: { flexDirection: "row", alignItems: "center", marginTop: 16 },
   switchText: { flex: 1, marginRight: 12 },
   calendar: { alignItems: "center", paddingHorizontal: 8 },
+  row: { flexDirection: "row", gap: 12 },
+  half: { flex: 1, marginBottom: 0 },
+  total: { marginBottom: 8 },
   iconTitle: { marginTop: 16, marginBottom: 4 },
   iconGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center" },
 });
