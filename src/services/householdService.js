@@ -2,8 +2,10 @@
 // Everything here talks to Firestore directly and uses real-time listeners
 // (onSnapshot), so changes made by one family member appear on every phone.
 import {
+  arrayRemove,
   arrayUnion,
   collection,
+  deleteField,
   doc,
   limit,
   onSnapshot,
@@ -99,6 +101,14 @@ export async function acceptInvite(user, invite) {
   });
   batch.update(doc(invites, invite.id), { status: "accepted" });
   await batch.commit();
+}
+
+// Leave the household: remove myself from the member list (my personal shelf is not touched)
+export async function leaveHousehold(user, householdId) {
+  await updateDoc(doc(households, householdId), {
+    members: arrayRemove(user.uid),
+    [`memberEmails.${user.uid}`]: deleteField(),
+  });
 }
 
 export async function declineInvite(invite) {

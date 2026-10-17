@@ -21,6 +21,7 @@ import {
   inviteMember,
   acceptInvite,
   declineInvite,
+  leaveHousehold,
   sendRequest,
   completeRequest,
   declineRequest,
@@ -187,6 +188,10 @@ export function HouseholdProvider({ children }) {
     decline: async (invite) => {
       requireOnline();
       await declineInvite(invite);
+    },
+    leave: async () => {
+      requireOnline();
+      await leaveHousehold(user, householdId);
     },
 
     // The writes below work offline: Firestore queues them and they show as "pending".

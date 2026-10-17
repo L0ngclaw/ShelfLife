@@ -37,6 +37,7 @@ export default function FamilyScreen({ navigation }) {
   const [requestFor, setRequestFor] = useState(null); // null = anyone
   const [requestNote, setRequestNote] = useState(""); // optional message
   const [forwarding, setForwarding] = useState(null); // request being forwarded
+  const [confirmLeave, setConfirmLeave] = useState(false);
   const [selectedShelfItem, setSelectedShelfItem] = useState(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -431,6 +432,16 @@ export default function FamilyScreen({ navigation }) {
                 </Button>
               </Card.Actions>
             </Card>
+
+            <Button
+              mode="outlined"
+              icon="exit-run"
+              textColor="#C62828"
+              style={styles.leaveButton}
+              onPress={() => setConfirmLeave(true)}
+            >
+              Leave household
+            </Button>
           </>
         )}
 
@@ -440,6 +451,30 @@ export default function FamilyScreen({ navigation }) {
       </ScrollView>
 
       <Portal>
+        <Dialog visible={confirmLeave} onDismiss={() => setConfirmLeave(false)}>
+          <Dialog.Icon icon="exit-run" />
+          <Dialog.Title style={styles.centerText}>Leave {h.household.name}?</Dialog.Title>
+          <Dialog.Content>
+            <Text variant="bodyMedium">
+              You will lose access to its shelf and requests. Your personal shelf is not
+              affected. You can join again if someone invites you.
+            </Text>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setConfirmLeave(false)}>Cancel</Button>
+            <Button
+              textColor="#C62828"
+              disabled={busy}
+              onPress={async () => {
+                setConfirmLeave(false);
+                await run(() => h.leave(), `You left ${h.household.name}`);
+              }}
+            >
+              Leave
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+
         <Dialog visible={!!forwarding} onDismiss={() => setForwarding(null)}>
           <Dialog.Title>Pass this request on</Dialog.Title>
           <Dialog.Content>
@@ -494,6 +529,8 @@ const styles = StyleSheet.create({
   note: { flexDirection: "row", gap: 8, backgroundColor: "#F1F8E9", borderRadius: 8, padding: 8 },
   noteText: { flex: 1, fontStyle: "italic" },
   forwardText: { marginBottom: 8 },
+  leaveButton: { marginTop: 8, borderColor: "#C62828" },
+  centerText: { textAlign: "center" },
   hint: { textAlign: "center", color: "#616161", marginVertical: 8 },
   ring: { marginRight: 12 },
   offline: {
