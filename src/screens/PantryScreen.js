@@ -1,5 +1,5 @@
 import { useLayoutEffect, useState } from "react";
-import { View, FlatList, StyleSheet } from "react-native";
+import { View, FlatList, ScrollView, StyleSheet } from "react-native";
 import {
   List,
   FAB,
@@ -7,18 +7,18 @@ import {
   ActivityIndicator,
   Avatar,
   Icon,
-  IconButton,
-  Portal,
-  Dialog,
-  Button,
   Searchbar,
+  Chip,
 } from "react-native-paper";
 import { useItems } from "../context/ItemsContext";
 import { useCategories } from "../context/CategoriesContext";
 import { describeExpiry } from "../utils/dates";
-import { EXPIRY_LEVELS } from "../utils/expiryStatus";
+import { formatAmount } from "../utils/amount";
 import ExpiryRing from "../components/ExpiryRing";
+import ExpiryLegendDialog from "../components/ExpiryLegendDialog";
+import ColorKeyButton from "../components/ColorKeyButton";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
+import { theme } from "../theme";
 
 export default function PantryScreen({ navigation }) {
   const { items, loading, isOnline } = useItems();
@@ -26,25 +26,32 @@ export default function PantryScreen({ navigation }) {
 
   const [legendVisible, setLegendVisible] = useState(false);
   const [query, setQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState(null); // null = all
   const searchText = useDebouncedValue(query).trim().toLowerCase();
 
-  // Put an (i) button in the Pantry header that opens the colour legend
+  // Mini colour-ring button in the Pantry header that opens the colour guide
   useLayoutEffect(() => {
     navigation.setOptions({
       headerRight: () => (
-        <IconButton
-          icon="information-outline"
-          onPress={() => setLegendVisible(true)}
-          accessibilityLabel="What do the colours mean?"
-        />
+        <ColorKeyButton onPress={() => setLegendVisible(true)} />
       ),
     });
   }, [navigation]);
 
-  // Only items still in the pantry, soonest expiry first
-  // Only items still in the pantry, matching the search, soonest expiry first
-  const pantry = items
-    .filter((i) => i.status === "active")
+  const activeItems = items.filter((i) => i.status === "active");
+
+  // Category filter: only categories that have items, with a count each
+  const categoryCounts = {};
+  for (const item of activeItems) {
+    categoryCounts[item.category] = (categoryCounts[item.category] ?? 0) + 1;
+  }
+  const filterCategories = Object.keys(categoryCounts).map((key) => getCategory(key));
+  // If the selected category has no items any more, show everything
+  const activeFilter = categoryCounts[selectedCategory] ? selectedCategory : null;
+
+  // Items matching the category filter and the search, soonest expiry first
+  const pantry = activeItems
+    .filter((i) => !activeFilter || i.category === activeFilter)
     .filter(
       (i) =>
         !searchText ||
@@ -52,6 +59,8 @@ export default function PantryScreen({ navigation }) {
         getCategory(i.category).label.toLowerCase().includes(searchText),
     )
     .sort((a, b) => a.expiryDate.localeCompare(b.expiryDate));
+
+  const isFiltering = !!searchText || !!activeFilter;
 
   if (loading) {
     return (
@@ -71,12 +80,58 @@ export default function PantryScreen({ navigation }) {
           </Text>
         </View>
       ) : null}
+
       <Searchbar
         placeholder="Search by name or category"
         value={query}
         onChangeText={setQuery}
         style={styles.search}
       />
+
+      {filterCategories.length > 1 ? (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.filterBar}
+          contentContainerStyle={styles.filterContent}
+        >
+          <Chip
+            icon={
+              !activeFilter
+                ? ({ size }) => <Icon source="check" size={size} color={theme.colors.onPrimary} />
+                : "view-grid-outline"
+            }
+            selected={!activeFilter}
+            showSelectedCheck={false}
+            onPress={() => setSelectedCategory(null)}
+            style={[styles.filterChip, !activeFilter && styles.chipSelected]}
+            selectedColor={!activeFilter ? theme.colors.onPrimary : undefined}
+          >
+            All ({activeItems.length})
+          </Chip>
+          {filterCategories.map((cat) => {
+            const selected = activeFilter === cat.key;
+            return (
+              <Chip
+                key={cat.key}
+                icon={
+                  selected
+                    ? ({ size }) => <Icon source="check" size={size} color={theme.colors.onPrimary} />
+                    : cat.icon
+                }
+                selected={selected}
+                showSelectedCheck={false}
+                onPress={() => setSelectedCategory(selected ? null : cat.key)}
+                style={[styles.filterChip, selected && styles.chipSelected]}
+                selectedColor={selected ? theme.colors.onPrimary : undefined}
+              >
+                {cat.label} ({categoryCounts[cat.key]})
+              </Chip>
+            );
+          })}
+        </ScrollView>
+      ) : null}
+
       <FlatList
         data={pantry}
         keyExtractor={(item) => item.id}
@@ -85,17 +140,11 @@ export default function PantryScreen({ navigation }) {
           return (
             <List.Item
               title={item.name}
-              description={`${cat.label} · ${item.weightKg} kg · ${describeExpiry(item.expiryDate)}`}
-              onPress={() =>
-                navigation.navigate("ItemDetail", { itemId: item.id })
-              }
+              description={`${cat.label} · ${formatAmount(item)} · ${describeExpiry(item.expiryDate)}`}
+              onPress={() => navigation.navigate("ItemDetail", { itemId: item.id })}
               left={(props) =>
                 item.photoUri ? (
-                  <Avatar.Image
-                    size={40}
-                    source={{ uri: item.photoUri }}
-                    style={props.style}
-                  />
+                  <Avatar.Image size={40} source={{ uri: item.photoUri }} style={props.style} />
                 ) : (
                   <List.Icon {...props} icon={cat.icon} />
                 )
@@ -105,10 +154,7 @@ export default function PantryScreen({ navigation }) {
                   {item.syncStatus === "pending" ? (
                     <Icon source="cloud-upload-outline" size={16} />
                   ) : null}
-                  <ExpiryRing
-                    purchaseDate={item.purchaseDate}
-                    expiryDate={item.expiryDate}
-                  />
+                  <ExpiryRing purchaseDate={item.purchaseDate} expiryDate={item.expiryDate} />
                 </View>
               )}
             />
@@ -116,45 +162,18 @@ export default function PantryScreen({ navigation }) {
         }}
         ListEmptyComponent={
           <View style={styles.center}>
-            <Icon
-              source={searchText ? "magnify" : "fridge-outline"}
-              size={64}
-              color="#9E9E9E"
-            />
+            <Icon source={isFiltering ? "magnify" : "fridge-outline"} size={64} color="#9E9E9E" />
             <Text variant="titleMedium">
-              {searchText
-                ? "No items match your search"
-                : "Your pantry is empty"}
+              {isFiltering ? "No items match your search" : "Your pantry is empty"}
             </Text>
-            {!searchText && (
-              <Text variant="bodyMedium">Tap + to add your first item.</Text>
-            )}
+            {!isFiltering && <Text variant="bodyMedium">Tap + to add your first item.</Text>}
           </View>
         }
-        contentContainerStyle={pantry.length === 0 && styles.emptyList}
+        contentContainerStyle={pantry.length === 0 ? styles.emptyList : styles.list}
       />
-      <Portal>
-        <Dialog
-          visible={legendVisible}
-          onDismiss={() => setLegendVisible(false)}
-        >
-          <Dialog.Title>What do the colours mean?</Dialog.Title>
-          <Dialog.Content>
-            {Object.values(EXPIRY_LEVELS).map((l) => (
-              <View key={l.level} style={styles.legendRow}>
-                <View style={[styles.dot, { backgroundColor: l.color }]} />
-                <View style={styles.legendText}>
-                  <Text variant="titleSmall">{l.title}</Text>
-                  <Text variant="bodySmall">{l.description}</Text>
-                </View>
-              </View>
-            ))}
-          </Dialog.Content>
-          <Dialog.Actions>
-            <Button onPress={() => setLegendVisible(false)}>Got it</Button>
-          </Dialog.Actions>
-        </Dialog>
-      </Portal>
+
+      <ExpiryLegendDialog visible={legendVisible} onDismiss={() => setLegendVisible(false)} />
+
       <FAB
         icon="plus"
         style={styles.fab}
@@ -169,11 +188,14 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
   emptyList: { flexGrow: 1 },
+  list: { paddingBottom: 88 }, // room for the + button
   right: { flexDirection: "row", alignItems: "center", gap: 8 },
   fab: { position: "absolute", right: 16, bottom: 16 },
-  legendRow: { flexDirection: "row", alignItems: "center", marginBottom: 12 },
-  dot: { width: 16, height: 16, borderRadius: 8, marginRight: 12 },
-  legendText: { flex: 1 },
+  search: { marginHorizontal: 16, marginTop: 16, marginBottom: 8 },
+  filterBar: { flexGrow: 0, marginBottom: 4 },
+  filterContent: { paddingHorizontal: 16, gap: 8 },
+  filterChip: { borderRadius: 20 },
+  chipSelected: { backgroundColor: theme.colors.primary },
   offline: {
     flexDirection: "row",
     alignItems: "center",
