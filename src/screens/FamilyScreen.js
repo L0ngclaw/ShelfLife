@@ -23,6 +23,7 @@ import { useHousehold } from "../context/HouseholdContext";
 import { useFeedback } from "../context/FeedbackContext";
 import { describeExpiry, timeAgo } from "../utils/dates";
 import ExpiryRing from "../components/ExpiryRing";
+import { formatAmount } from "../utils/amount";
 
 export default function FamilyScreen({ navigation }) {
   const { user } = useAuth();
@@ -46,7 +47,11 @@ export default function FamilyScreen({ navigation }) {
       if (successMessage) showMessage(successMessage);
       return true;
     } catch (e) {
-      setError(e.message);
+      setError(
+        e.code === "permission-denied"
+          ? "The server refused this (permission denied). Check that the latest Firestore rules are published."
+          : e.message,
+      );
       return false;
     } finally {
       setBusy(false);
@@ -305,7 +310,7 @@ export default function FamilyScreen({ navigation }) {
               <Card key={s.id} style={styles.card} onPress={() => setSelectedShelfItem(s)}>
                 <Card.Title
                   title={s.name}
-                  subtitle={`${s.categoryLabel} · ${s.weightKg} kg · ${describeExpiry(s.expiryDate)}${
+                  subtitle={`${s.categoryLabel} · ${formatAmount(s)} · ${describeExpiry(s.expiryDate)}${
                     s.pending ? " · Sending…" : ` · by ${s.addedByUid === user.uid ? "you" : s.addedByName}`
                   }`}
                   subtitleNumberOfLines={2}

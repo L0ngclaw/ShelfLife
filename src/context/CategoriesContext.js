@@ -72,7 +72,7 @@ export function CategoriesProvider({ children }) {
 
   const getCategory = (key) => categories.find((c) => c.key === key) ?? OTHER;
 
-  const addCategory = async (label) => {
+  const addCategory = async (label, icon = "tag-outline") => {
     const name = label.trim();
     if (name.length < 2 || name.length > 20) {
       throw new Error("Category name must be 2–20 characters.");
@@ -83,7 +83,7 @@ export function CategoriesProvider({ children }) {
     const category = {
       key: `custom-${createId()}`,
       label: name,
-      icon: "tag-outline",
+      icon,
       defaultWeightKg: 0.5,
       custom: true,
     };

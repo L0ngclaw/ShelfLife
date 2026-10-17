@@ -8,6 +8,7 @@ import { getExpiryStatus } from "../utils/expiryStatus";
 import ExpiryRing from "../components/ExpiryRing";
 import { useFeedback } from "../context/FeedbackContext";
 import { useHousehold } from "../context/HouseholdContext";
+import { formatAmount } from "../utils/amount";
 
 export default function ItemDetailScreen({ route, navigation }) {
   const { itemId } = route.params; // passed from the Pantry list
@@ -53,6 +54,8 @@ export default function ItemDetailScreen({ route, navigation }) {
       categoryLabel: cat.label,
       categoryIcon: cat.icon,
       weightKg: item.weightKg,
+      unit: item.unit ?? "kg",
+      quantity: item.quantity ?? null,
       purchaseDate: item.purchaseDate,
       expiryDate: item.expiryDate,
     }).catch(() => showMessage("Could not share the item. Please try again."));
@@ -107,8 +110,8 @@ export default function ItemDetailScreen({ route, navigation }) {
         left={(p) => <List.Icon {...p} icon={cat.icon} />}
       />
       <List.Item
-        title="Weight"
-        description={`${item.weightKg} kg`}
+        title="Amount"
+        description={formatAmount(item)}
         left={(p) => <List.Icon {...p} icon="scale" />}
       />
       <List.Item

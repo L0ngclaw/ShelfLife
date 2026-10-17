@@ -164,7 +164,7 @@ export function listenToShelf(hid, onChange, onError) {
   );
 }
 
-// item: { name, category, categoryLabel, categoryIcon, weightKg, purchaseDate, expiryDate }
+// item: { name, category, categoryLabel, categoryIcon, weightKg, unit, quantity, purchaseDate, expiryDate }
 export function addToShelf(hid, user, item) {
   return setDoc(doc(shelfOf(hid)), {
     name: item.name,
@@ -172,6 +172,8 @@ export function addToShelf(hid, user, item) {
     categoryLabel: item.categoryLabel, // stored so every member sees the label,
     categoryIcon: item.categoryIcon, //   even for someone's custom category
     weightKg: item.weightKg,
+    unit: item.unit ?? "kg",
+    quantity: item.quantity ?? null,
     purchaseDate: item.purchaseDate,
     expiryDate: item.expiryDate,
     status: "active",
