@@ -36,8 +36,10 @@ export const EXPIRY_LEVELS = {
   },
 };
 
-export function getExpiryStatus(purchaseDate, expiryDate) {
-  const days = daysUntil(expiryDate);
+// onDate (optional, 'YYYY-MM-DD'): work out the status on that day instead of today.
+// Used by the Impact screen to know how urgent an item was when it was eaten.
+export function getExpiryStatus(purchaseDate, expiryDate, onDate) {
+  const days = onDate ? daysBetween(onDate, expiryDate) : daysUntil(expiryDate);
   const totalDays = Math.max(1, daysBetween(purchaseDate, expiryDate));
   // Share of the shelf life that is left, kept between 0 and 1
   const fractionLeft = Math.min(1, Math.max(0, days / totalDays));
