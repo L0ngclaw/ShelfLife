@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { ScrollView, View, StyleSheet, Image } from "react-native";
+import { useHousehold } from "../context/HouseholdContext";
 import { takePhoto } from "../services/photoService";
 import {
   TextInput,
@@ -9,6 +10,7 @@ import {
   Text,
   Portal,
   Dialog,
+  Switch,
 } from "react-native-paper";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { toISODate, describeExpiry } from "../utils/dates";
@@ -16,10 +18,13 @@ import { useItems } from "../context/ItemsContext";
 import { useCategories } from "../context/CategoriesContext";
 import { useFeedback } from "../context/FeedbackContext";
 
-export default function AddItemScreen({ navigation }) {
+export default function AddItemScreen({ navigation, route }) {
   const { addItem } = useItems();
-  const { categories, addCategory } = useCategories();
-  const [name, setName] = useState("");
+  const { categories, addCategory, getCategory } = useCategories();
+  const { household, addToShelf } = useHousehold();
+  // A bought request can open this screen with the name already filled in
+  const [name, setName] = useState(route.params?.presetName ?? "");
+  const [toFamilyShelf, setToFamilyShelf] = useState(false);
   const [category, setCategory] = useState("dairy");
   const [weight, setWeight] = useState("1");
   const [expiry, setExpiry] = useState(() => {
@@ -90,6 +95,25 @@ export default function AddItemScreen({ navigation }) {
     if (expiry < today) return setError("Expiry date cannot be in the past.");
 
     setError("");
+
+    // Family shelf: written straight to Firestore (shared, live). Not awaited,
+    // so it also works offline - Firestore queues it and sends it later.
+    if (household && toFamilyShelf) {
+      const cat = getCategory(category);
+      addToShelf({
+        name: trimmedName,
+        category,
+        categoryLabel: cat.label,
+        categoryIcon: cat.icon,
+        weightKg,
+        purchaseDate: toISODate(new Date()),
+        expiryDate: toISODate(expiry),
+      }).catch(() => showMessage("Could not share the item. Please try again."));
+      showMessage(`${trimmedName} added to the family shelf`);
+      navigation.goBack();
+      return;
+    }
+
     setSaving(true);
     try {
       await addItem({
@@ -193,6 +217,18 @@ export default function AddItemScreen({ navigation }) {
         />
       )}
 
+      {household ? (
+        <View style={styles.switchRow}>
+          <View style={styles.switchText}>
+            <Text variant="titleSmall">Family shelf</Text>
+            <Text variant="bodySmall">
+              Share with {household.name} instead of your private pantry
+            </Text>
+          </View>
+          <Switch value={toFamilyShelf} onValueChange={setToFamilyShelf} />
+        </View>
+      ) : null}
+
       <HelperText type="error" visible={!!error}>
         {error}
       </HelperText>
@@ -250,4 +286,6 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   photoButton: { marginBottom: 12 },
+  switchRow: { flexDirection: "row", alignItems: "center", marginTop: 12 },
+  switchText: { flex: 1 },
 });

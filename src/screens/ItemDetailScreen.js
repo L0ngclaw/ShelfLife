@@ -7,11 +7,13 @@ import { describeExpiry, toISODate } from "../utils/dates";
 import { getExpiryStatus } from "../utils/expiryStatus";
 import ExpiryRing from "../components/ExpiryRing";
 import { useFeedback } from "../context/FeedbackContext";
+import { useHousehold } from "../context/HouseholdContext";
 
 export default function ItemDetailScreen({ route, navigation }) {
   const { itemId } = route.params; // passed from the Pantry list
   const { items, updateItem } = useItems();
   const { getCategory } = useCategories();
+  const { household, addToShelf } = useHousehold();
   const [tip, setTip] = useState(""); // message shown by the ring's events
 
   const item = items.find((i) => i.id === itemId);
@@ -39,6 +41,23 @@ export default function ItemDetailScreen({ route, navigation }) {
         ? `Nice! ${item.name} marked as eaten`
         : `${item.name} marked as thrown away`,
     );
+    navigation.goBack();
+  };
+
+  // Move a private item to the shared family shelf.
+  // The private copy gets status "shared" so it leaves the pantry and Impact.
+  const shareWithFamily = async () => {
+    addToShelf({
+      name: item.name,
+      category: item.category,
+      categoryLabel: cat.label,
+      categoryIcon: cat.icon,
+      weightKg: item.weightKg,
+      purchaseDate: item.purchaseDate,
+      expiryDate: item.expiryDate,
+    }).catch(() => showMessage("Could not share the item. Please try again."));
+    await updateItem(item.id, { status: "shared" });
+    showMessage(`${item.name} moved to the family shelf`);
     navigation.goBack();
   };
 
@@ -126,6 +145,16 @@ export default function ItemDetailScreen({ route, navigation }) {
           >
             Thrown away
           </Button>
+          {household ? (
+            <Button
+              mode="text"
+              icon="account-group-outline"
+              onPress={shareWithFamily}
+              style={styles.button}
+            >
+              Share with family
+            </Button>
+          ) : null}
         </View>
       ) : (
         <Text variant="bodyLarge" style={styles.question}>
