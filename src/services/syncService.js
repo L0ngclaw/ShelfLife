@@ -21,6 +21,7 @@ const CLOUD_FIELDS = [
   "weightKg",
   "unit",
   "quantity",
+  "weightPerItemKg",
   "purchaseDate",
   "expiryDate",
   "status",

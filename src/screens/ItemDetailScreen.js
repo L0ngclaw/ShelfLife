@@ -56,6 +56,7 @@ export default function ItemDetailScreen({ route, navigation }) {
       weightKg: item.weightKg,
       unit: item.unit ?? "kg",
       quantity: item.quantity ?? null,
+      weightPerItemKg: item.weightPerItemKg ?? null,
       purchaseDate: item.purchaseDate,
       expiryDate: item.expiryDate,
     }).catch(() => showMessage("Could not share the item. Please try again."));
