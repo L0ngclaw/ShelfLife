@@ -108,3 +108,20 @@ export async function sendTestReminder() {
   });
   return "sent";
 }
+
+// Show a notification straight away (used for new family requests / shared items).
+// Returns false when notifications are not available, so the caller can
+// show an in-app message instead.
+export async function notifyNow(title, body) {
+  try {
+    const Notifications = await getNotifications();
+    if (!Notifications || !(await ensurePermission(Notifications))) return false;
+    await Notifications.scheduleNotificationAsync({
+      content: { title, body },
+      trigger: Platform.OS === "android" ? { channelId: CHANNEL_ID } : null, // null = now
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}

@@ -8,6 +8,7 @@ import { ItemsProvider } from "./src/context/ItemsContext";
 import RootNavigator from "./src/navigation/RootNavigator";
 import { theme, navigationTheme } from "./src/theme";
 import { FeedbackProvider } from "./src/context/FeedbackContext";
+import { HouseholdProvider } from "./src/context/HouseholdContext";
 
 export default function App() {
   return (
@@ -17,10 +18,12 @@ export default function App() {
           <AuthProvider>
             <CategoriesProvider>
               <ItemsProvider>
-                <NavigationContainer theme={navigationTheme}>
-                  <RootNavigator />
-                  <StatusBar style="dark" />
-                </NavigationContainer>
+                <HouseholdProvider>
+                  <NavigationContainer theme={navigationTheme}>
+                    <RootNavigator />
+                    <StatusBar style="dark" />
+                  </NavigationContainer>
+                </HouseholdProvider>
               </ItemsProvider>
             </CategoriesProvider>
           </AuthProvider>
