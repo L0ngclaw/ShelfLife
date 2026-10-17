@@ -89,26 +89,6 @@ export async function cancelReminder(reminderId) {
   }
 }
 
-// For the demo: a reminder in 5 seconds.
-// Returns 'sent', 'denied' or 'unsupported'
-export async function sendTestReminder() {
-  const Notifications = await getNotifications();
-  if (!Notifications) return "unsupported";
-  if (!(await ensurePermission(Notifications))) return "denied";
-  await Notifications.scheduleNotificationAsync({
-    content: {
-      title: "ShelfLife reminder test",
-      body: "Reminders are working.",
-    },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-      seconds: 5,
-      channelId: CHANNEL_ID,
-    },
-  });
-  return "sent";
-}
-
 // Show a notification straight away (used for new family requests / shared items).
 // Returns false when notifications are not available, so the caller can
 // show an in-app message instead.

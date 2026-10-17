@@ -2,11 +2,7 @@ import { View, StyleSheet } from "react-native";
 import { Text, Button, List, Divider } from "react-native-paper";
 import { useAuth } from "../context/AuthContext";
 import { useItems } from "../context/ItemsContext";
-import { useState } from "react";
-import {
-  sendTestReminder,
-  remindersSupported,
-} from "../services/notificationService";
+import { remindersSupported } from "../services/notificationService";
 
 const STATUS_TEXT = {
   idle: "Up to date",
@@ -18,19 +14,6 @@ const STATUS_TEXT = {
 export default function SettingsScreen() {
   const { user, logout } = useAuth();
   const { sync, syncNow, pendingCount, isOnline } = useItems();
-  const [reminderMsg, setReminderMsg] = useState("");
-
-  const handleTestReminder = async () => {
-    const result = await sendTestReminder();
-    const messages = {
-      sent: "A test reminder will appear in 5 seconds.",
-      denied: "Notifications are turned off for ShelfLife.",
-      unsupported:
-        "Reminders are not available in Expo Go on Android. They work on iPhone and in the installed app.",
-    };
-    setReminderMsg(messages[result]);
-  };
-
   const statusText =
     isOnline === false ? STATUS_TEXT.offline : STATUS_TEXT[sync.status];
   const lastSynced = sync.lastSyncedAt
@@ -102,19 +85,6 @@ export default function SettingsScreen() {
           }
           left={(p) => <List.Icon {...p} icon="bell-outline" />}
         />
-        <Button
-          mode="outlined"
-          icon="bell-ring-outline"
-          onPress={handleTestReminder}
-          style={styles.button}
-        >
-          Send test reminder
-        </Button>
-        {reminderMsg ? (
-          <Text variant="bodySmall" style={styles.note}>
-            {reminderMsg}
-          </Text>
-        ) : null}
       </List.Section>
 
       <Button
@@ -133,5 +103,4 @@ const styles = StyleSheet.create({
   container: { flex: 1, padding: 8 },
   button: { marginHorizontal: 16, marginTop: 8 },
   error: { marginHorizontal: 16, color: "#C62828" },
-  note: { marginHorizontal: 16, marginTop: 4, color: "#616161" },
 });
