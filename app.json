@@ -10,6 +10,7 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.pubudu.shelflife",
       "adaptiveIcon": {
         "backgroundColor": "#2E7D32",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -30,6 +31,11 @@
           "backgroundColor": "#FAFBF7"
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "86fc1329-b487-4355-a3b0-b004d71c0aeb"
+      }
+    }
   }
 }

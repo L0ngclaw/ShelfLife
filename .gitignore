@@ -44,3 +44,4 @@ yarn-error.*
 .claude/
 docs/
 AGENTS.md
+scripts/
