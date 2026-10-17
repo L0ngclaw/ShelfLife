@@ -1,19 +1,25 @@
 import { useState } from "react";
 import { ScrollView, View, StyleSheet } from "react-native";
-import { Text, Card, Snackbar } from "react-native-paper";
+import { Text, Card, Snackbar, Icon, SegmentedButtons } from "react-native-paper";
 import { useItems } from "../context/ItemsContext";
 import { useCategories } from "../context/CategoriesContext";
-import { calculateImpact, MONTHLY_GOAL_KG } from "../utils/impact";
+import { useHousehold } from "../context/HouseholdContext";
+import { calculateImpact, RESCUE_GOAL } from "../utils/impact";
 import { toISODate } from "../utils/dates";
-import CO2SavingsGauge from "../components/CO2SavingsGauge";
+import RescueGauge from "../components/RescueGauge";
 
 // Small stat box used three times below
-function Stat({ value, label }) {
+function Stat({ icon, value, label, color }) {
   return (
     <Card style={styles.stat}>
       <Card.Content style={styles.statContent}>
-        <Text variant="headlineSmall">{value}</Text>
-        <Text variant="bodySmall">{label}</Text>
+        <Icon source={icon} size={22} color={color} />
+        <Text variant="headlineSmall" style={styles.statValue}>
+          {value}
+        </Text>
+        <Text variant="bodySmall" style={styles.statLabel}>
+          {label}
+        </Text>
       </Card.Content>
     </Card>
   );
@@ -22,85 +28,106 @@ function Stat({ value, label }) {
 export default function ImpactScreen() {
   const { items } = useItems();
   const { getCategory } = useCategories();
+  const { household, shelf } = useHousehold();
   const [celebrate, setCelebrate] = useState(false);
+  const [scope, setScope] = useState("personal"); // "personal" or a household id
+
+  // Which items to measure: my private pantry, or the household's family shelf
+  const showFamily = !!household && scope === household.id;
+  const source = showFamily ? shelf : items;
 
   const thisMonth = toISODate(new Date()).slice(0, 7); // 'YYYY-MM'
-  const month = calculateImpact(items, getCategory, thisMonth);
-  const allTime = calculateImpact(items, getCategory);
-  const monthName = new Date().toLocaleDateString(undefined, {
-    month: "long",
-    year: "numeric",
-  });
+  const month = calculateImpact(source, getCategory, thisMonth);
+  const allTime = calculateImpact(source, getCategory);
+  const monthName = new Date().toLocaleDateString(undefined, { month: "long", year: "numeric" });
+
+  // Only celebrate once there is enough data (1 of 1 eaten = 100% is not much of a goal)
+  const enoughData = month.finishedCount >= 3;
 
   return (
     <View style={styles.flex}>
       <ScrollView contentContainerStyle={styles.container}>
+        {household ? (
+          <SegmentedButtons
+            value={showFamily ? household.id : "personal"}
+            onValueChange={setScope}
+            style={styles.scope}
+            buttons={[
+              { value: "personal", label: "Personal", icon: "account-outline" },
+              { value: household.id, label: household.name, icon: "account-group-outline" },
+            ]}
+          />
+        ) : null}
+
         <Text variant="titleLarge" style={styles.heading}>
           {monthName}
+        </Text>
+        <Text variant="bodySmall" style={styles.scopeNote}>
+          {showFamily
+            ? `Family shelf of ${household.name} – everyone's eaten and thrown-away items`
+            : "Your private pantry"}
         </Text>
 
         <Card style={styles.card}>
           <Card.Content style={styles.gaugeBox}>
-            <CO2SavingsGauge
-              savedKg={month.savedKg}
-              wastedKg={month.wastedKg}
-              monthlyGoalKg={MONTHLY_GOAL_KG}
-              onGoalReached={() => setCelebrate(true)}
+            <RescueGauge
+              value={month.rescueRate}
+              goal={RESCUE_GOAL}
+              caption={
+                month.finishedCount
+                  ? `${month.eatenCount} of ${month.finishedCount} finished items were eaten`
+                  : "No finished items yet this month"
+              }
+              onGoalReached={enoughData ? () => setCelebrate(true) : undefined}
             />
             <Text variant="bodySmall" style={styles.hint}>
-              CO₂ saved = the emissions of food you ate instead of throwing
-              away.
+              Rescue rate = food you ate instead of throwing away. Goal: {RESCUE_GOAL}% (the
+              marker on the gauge).
             </Text>
           </Card.Content>
         </Card>
 
         <View style={styles.row}>
-          <Stat value={month.eatenCount} label="Eaten" />
-          <Stat value={month.wastedCount} label="Thrown away" />
+          <Stat icon="silverware-fork-knife" value={month.eatenCount} label="Eaten" color="#2E7D32" />
+          <Stat icon="delete-outline" value={month.wastedCount} label="Thrown away" color="#C62828" />
           <Stat
-            value={`${Math.round(month.wasteRate * 100)}%`}
-            label="Waste rate"
+            icon="timer-sand"
+            value={month.justInTimeCount}
+            label="Saved just in time"
+            color="#F9A825"
           />
         </View>
+        <Text variant="bodySmall" style={styles.note}>
+          “Saved just in time” = eaten while its ring was amber or red.
+        </Text>
 
-        {month.topWaste ? (
-          <Card style={styles.card}>
-            <Card.Title title="Biggest source of waste" />
-            <Card.Content>
+        <Card style={styles.card}>
+          <Card.Title title="Most wasted category" />
+          <Card.Content>
+            {month.topWaste ? (
               <Text variant="bodyMedium">
-                {month.topWaste.label}: {month.topWaste.co2Kg.toFixed(1)} kg CO₂
-                this month. Try buying smaller amounts.
+                {month.topWaste.label}: thrown away {month.topWaste.count} time
+                {month.topWaste.count === 1 ? "" : "s"} this month. Try buying smaller amounts.
               </Text>
-            </Card.Content>
-          </Card>
-        ) : null}
-
-        {month.eatenCount + month.wastedCount === 0 ? (
-          <Text variant="bodyMedium" style={styles.hint}>
-            Mark items as eaten or thrown away to see your impact.
-          </Text>
-        ) : null}
+            ) : (
+              <Text variant="bodyMedium">Nothing thrown away this month. Great job!</Text>
+            )}
+          </Card.Content>
+        </Card>
 
         <Card style={styles.card}>
           <Card.Title title="All time" />
           <Card.Content>
             <Text variant="bodyMedium">
-              {allTime.savedKg.toFixed(1)} kg CO₂ saved ·{" "}
-              {allTime.wastedKg.toFixed(1)} kg CO₂ wasted
-            </Text>
-            <Text variant="bodyMedium">
-              {allTime.wastedFoodKg.toFixed(1)} kg of food thrown away
+              Rescue rate {allTime.rescueRate}% · {allTime.eatenCount} eaten ·{" "}
+              {allTime.wastedCount} thrown away · {allTime.justInTimeCount} saved just in time
             </Text>
           </Card.Content>
         </Card>
       </ScrollView>
 
-      <Snackbar
-        visible={celebrate}
-        onDismiss={() => setCelebrate(false)}
-        duration={4000}
-      >
-        Monthly goal reached! You saved {MONTHLY_GOAL_KG} kg of CO₂.
+      <Snackbar visible={celebrate} onDismiss={() => setCelebrate(false)} duration={4000}>
+        Goal reached! You ate {RESCUE_GOAL}% or more of your food this month.
       </Snackbar>
     </View>
   );
@@ -109,11 +136,16 @@ export default function ImpactScreen() {
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   container: { padding: 16 },
-  heading: { marginBottom: 12 },
+  heading: { marginBottom: 2 },
+  scope: { marginBottom: 16 },
+  scopeNote: { color: "#616161", marginBottom: 12 },
   card: { marginBottom: 12 },
   gaugeBox: { alignItems: "center" },
   hint: { textAlign: "center", marginTop: 8, color: "#616161" },
-  row: { flexDirection: "row", gap: 8, marginBottom: 12 },
+  row: { flexDirection: "row", gap: 8, marginBottom: 4 },
   stat: { flex: 1 },
   statContent: { alignItems: "center" },
+  statValue: { marginTop: 4 },
+  statLabel: { textAlign: "center" },
+  note: { color: "#616161", marginBottom: 12, marginLeft: 4 },
 });
