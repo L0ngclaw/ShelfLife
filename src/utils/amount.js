@@ -13,7 +13,10 @@ const round2 = (n) => Math.round(n * 100) / 100;
 
 // "Use some": takes part of an item and returns what is left.
 // `usedText` is pieces for counted items and kg for weighed items.
-// Returns { changes, finished }. finished = nothing left, so the item counts as eaten.
+// Returns { changes, used, finished }:
+//   changes  = the new amount of the item
+//   used     = the amount that was used (saved as its own eaten record for Impact)
+//   finished = nothing left, so the whole item is marked as eaten
 // Throws a friendly error when the amount is not valid.
 export function remainingAfterUse(item, usedText) {
   const used = parseFloat(String(usedText).replace(",", "."));
@@ -24,11 +27,16 @@ export function remainingAfterUse(item, usedText) {
     const quantity = item.quantity - used;
     // Keep the total weight in step when the weight of one piece is known
     const weightKg = item.weightPerItemKg ? round2(quantity * item.weightPerItemKg) : item.weightKg;
-    return { changes: { quantity, weightKg }, finished: quantity === 0 };
+    const usedPart = {
+      unit: "pcs",
+      quantity: used,
+      weightKg: item.weightPerItemKg ? round2(used * item.weightPerItemKg) : null,
+    };
+    return { changes: { quantity, weightKg }, used: usedPart, finished: quantity === 0 };
   }
 
   if (isNaN(used) || used <= 0 || used > item.weightKg)
     throw new Error(`Enter an amount more than 0 and up to ${item.weightKg} kg.`);
   const weightKg = round2(item.weightKg - used);
-  return { changes: { weightKg }, finished: weightKg <= 0 };
+  return { changes: { weightKg }, used: { unit: "kg", weightKg: round2(used) }, finished: weightKg <= 0 };
 }

@@ -29,6 +29,7 @@ import {
   addToShelf,
   finishShelfItem,
   updateShelfItem,
+  recordShelfPartialUse,
 } from "../services/householdService";
 import { displayName } from "../utils/names";
 import { toISODate } from "../utils/dates";
@@ -138,7 +139,7 @@ export function HouseholdProvider({ children }) {
           return;
         }
         added
-          .filter((s) => isNewFromOthers(s, s.addedByUid))
+          .filter((s) => s.status === "active" && isNewFromOthers(s, s.addedByUid))
           .forEach((s) => announce(`${s.addedByName} shared ${s.name}`, "Added to the family shelf"));
       },
       () => setShelfData({ hid: householdId, list: [] }),
@@ -214,6 +215,8 @@ export function HouseholdProvider({ children }) {
       forwardRequest(householdId, request.id, user, toUid, memberNames[toUid]),
     addToShelf: (item) => addToShelf(householdId, user, item),
     updateShelfItem: (item, changes) => updateShelfItem(householdId, item.id, user, changes),
+    recordShelfPartialUse: (item, changes, usedPart) =>
+      recordShelfPartialUse(householdId, item, user, changes, usedPart, toISODate(new Date())),
     finishShelfItem: (item, status) =>
       finishShelfItem(householdId, item.id, user, status, toISODate(new Date())),
   };

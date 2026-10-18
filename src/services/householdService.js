@@ -231,6 +231,33 @@ export function updateShelfItem(hid, itemId, user, changes) {
   });
 }
 
+// "Use some" on a shared item: lower its amount and save the used part as its
+// own eaten record (for the household's Impact). One batch, so both happen together.
+export function recordShelfPartialUse(hid, item, user, changes, usedPart, finishedDate) {
+  const batch = writeBatch(db);
+  batch.update(doc(shelfOf(hid), item.id), {
+    ...changes,
+    updatedByName: displayName(user.email),
+  });
+  batch.set(doc(shelfOf(hid)), {
+    name: item.name,
+    category: item.category,
+    categoryLabel: item.categoryLabel,
+    categoryIcon: item.categoryIcon,
+    purchaseDate: item.purchaseDate,
+    expiryDate: item.expiryDate,
+    weightPerItemKg: item.weightPerItemKg ?? null,
+    ...usedPart,
+    status: "eaten",
+    finishedDate,
+    finishedByName: displayName(user.email),
+    addedByUid: item.addedByUid,
+    addedByName: item.addedByName,
+    createdAt: serverTimestamp(),
+  });
+  return batch.commit();
+}
+
 export function finishShelfItem(hid, itemId, user, status, finishedDate) {
   return updateDoc(doc(shelfOf(hid), itemId), {
     status, // 'eaten' or 'wasted'

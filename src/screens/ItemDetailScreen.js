@@ -13,7 +13,7 @@ import { formatAmount } from "../utils/amount";
 
 export default function ItemDetailScreen({ route, navigation }) {
   const { itemId } = route.params; // passed from the Pantry list
-  const { items, updateItem } = useItems();
+  const { items, updateItem, recordPartialUse } = useItems();
   const { getCategory } = useCategories();
   const { household, addToShelf } = useHousehold();
   const [tip, setTip] = useState(""); // message shown by the ring's events
@@ -48,10 +48,10 @@ export default function ItemDetailScreen({ route, navigation }) {
   };
 
   // Part of the item was used: lower the amount, or mark as eaten when none is left
-  const handleUse = async ({ changes, finished }) => {
+  const handleUse = async ({ changes, used, finished }) => {
     setUsing(false);
     if (finished) return finish("eaten");
-    await updateItem(item.id, changes);
+    await recordPartialUse(item.id, changes, used); // the used part counts as eaten
     showMessage(`${item.name}: ${formatAmount({ ...item, ...changes })} left`);
   };
 

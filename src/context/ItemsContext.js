@@ -16,6 +16,7 @@ import {
   mergeItems,
 } from "../services/syncService";
 import { withRetry } from "../utils/retry";
+import { toISODate } from "../utils/dates";
 import { useNetworkStatus } from "../hooks/useNetworkStatus";
 import {
   scheduleExpiryReminder,
@@ -158,6 +159,31 @@ export function ItemsProvider({ children }) {
     );
   };
 
+  // "Use some": the used part is saved as its own eaten record, so the Impact
+  // screen counts it, and the item keeps the rest. Saved together in one step.
+  const recordPartialUse = async (id, changes, usedPart) => {
+    const now = new Date().toISOString();
+    const target = items.find((i) => i.id === id);
+    if (!target) return;
+    const eatenPart = {
+      ...target,
+      ...usedPart,
+      id: createId(),
+      status: "eaten",
+      finishedDate: toISODate(new Date()),
+      reminderId: null, // the reminder stays with the item that is left
+      createdAt: now,
+      updatedAt: now,
+      syncStatus: "pending",
+    };
+    await persist([
+      ...items.map((i) =>
+        i.id === id ? { ...i, ...changes, updatedAt: now, syncStatus: "pending" } : i,
+      ),
+      eatenPart,
+    ]);
+  };
+
   return (
     <ItemsContext.Provider
       value={{
@@ -165,6 +191,7 @@ export function ItemsProvider({ children }) {
         loading,
         addItem,
         updateItem,
+        recordPartialUse,
         sync,
         syncNow,
         pendingCount,

@@ -121,7 +121,7 @@ export default function FamilyScreen({ navigation }) {
   };
 
   // Part of a shared item was used: lower the amount, or mark as eaten when none is left
-  const handleUseShelfItem = ({ changes, finished }) => {
+  const handleUseShelfItem = ({ changes, used, finished }) => {
     const item = usingShelfItem;
     setUsingShelfItem(null);
     if (finished) {
@@ -129,7 +129,7 @@ export default function FamilyScreen({ navigation }) {
       showMessage(`${item.name} marked as eaten`);
       return;
     }
-    queueWrite(h.updateShelfItem(item, changes));
+    queueWrite(h.recordShelfPartialUse(item, changes, used)); // the used part counts as eaten
     showMessage(`${item.name}: ${formatAmount({ ...item, ...changes })} left`);
   };
 
