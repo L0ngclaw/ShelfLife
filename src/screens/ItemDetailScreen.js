@@ -6,6 +6,7 @@ import { useCategories } from "../context/CategoriesContext";
 import { describeExpiry, toISODate } from "../utils/dates";
 import { getExpiryStatus } from "../utils/expiryStatus";
 import ExpiryRing from "../components/ExpiryRing";
+import UseSomeDialog from "../components/UseSomeDialog";
 import { useFeedback } from "../context/FeedbackContext";
 import { useHousehold } from "../context/HouseholdContext";
 import { formatAmount } from "../utils/amount";
@@ -16,6 +17,7 @@ export default function ItemDetailScreen({ route, navigation }) {
   const { getCategory } = useCategories();
   const { household, addToShelf } = useHousehold();
   const [tip, setTip] = useState(""); // message shown by the ring's events
+  const [using, setUsing] = useState(false); // "Use some" dialog open
 
   const item = items.find((i) => i.id === itemId);
   const { showMessage } = useFeedback();
@@ -43,6 +45,14 @@ export default function ItemDetailScreen({ route, navigation }) {
         : `${item.name} marked as thrown away`,
     );
     navigation.goBack();
+  };
+
+  // Part of the item was used: lower the amount, or mark as eaten when none is left
+  const handleUse = async ({ changes, finished }) => {
+    setUsing(false);
+    if (finished) return finish("eaten");
+    await updateItem(item.id, changes);
+    showMessage(`${item.name}: ${formatAmount({ ...item, ...changes })} left`);
   };
 
   // Move a private item to the shared family shelf.
@@ -126,6 +136,27 @@ export default function ItemDetailScreen({ route, navigation }) {
         left={(p) => <List.Icon {...p} icon="calendar-alert" />}
       />
 
+      {isActive ? (
+        <View style={styles.actionRow}>
+          <Button
+            mode="outlined"
+            icon="minus-circle-outline"
+            onPress={() => setUsing(true)}
+            style={styles.actionButton}
+          >
+            Use some
+          </Button>
+          <Button
+            mode="outlined"
+            icon="pencil-outline"
+            onPress={() => navigation.navigate("AddItem", { editItemId: item.id })}
+            style={styles.actionButton}
+          >
+            Edit
+          </Button>
+        </View>
+      ) : null}
+
       <Divider style={styles.divider} />
 
       {isActive ? (
@@ -166,6 +197,14 @@ export default function ItemDetailScreen({ route, navigation }) {
           {item.finishedDate}.
         </Text>
       )}
+
+      <UseSomeDialog
+        key={`${item.id}-${using}`}
+        item={item}
+        visible={using}
+        onUse={handleUse}
+        onDismiss={() => setUsing(false)}
+      />
     </ScrollView>
   );
 }
@@ -183,6 +222,8 @@ const styles = StyleSheet.create({
   },
   ringText: { flex: 1 },
   divider: { marginVertical: 16 },
+  actionRow: { flexDirection: "row", gap: 12, marginTop: 8 },
+  actionButton: { flex: 1 },
   question: { marginBottom: 12 },
   button: { marginBottom: 12 },
 });

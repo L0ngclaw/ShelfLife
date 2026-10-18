@@ -15,7 +15,7 @@ import {
 } from "react-native-paper";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { takePhoto } from "../services/photoService";
-import { toISODate, describeExpiry } from "../utils/dates";
+import { toISODate, parseISODate, describeExpiry } from "../utils/dates";
 import { useItems } from "../context/ItemsContext";
 import { useCategories } from "../context/CategoriesContext";
 import { useFeedback } from "../context/FeedbackContext";
@@ -26,26 +26,33 @@ import { CUSTOM_CATEGORY_ICONS } from "../constants/categories";
 import { theme } from "../theme";
 
 export default function AddItemScreen({ navigation, route }) {
-  const { addItem } = useItems();
+  const { items, addItem, updateItem } = useItems();
   const { categories, addCategory, getCategory } = useCategories();
-  const { household, addToShelf } = useHousehold();
+  const { household, shelf, addToShelf, updateShelfItem } = useHousehold();
   const { showMessage } = useFeedback();
   const { askPermission, dialogProps } = usePermission();
 
+  // Edit mode: the same screen edits a personal item (from Item details)
+  // or a family-shelf item (from the Family tab), filled in with its values
+  const editId = route.params?.editItemId ?? route.params?.editShelfItemId;
+  const isShelfEdit = !!route.params?.editShelfItemId;
+  const editing = editId ? (isShelfEdit ? shelf : items).find((i) => i.id === editId) : null;
+
   // A bought request can open this screen with the name already filled in
-  const [name, setName] = useState(route.params?.presetName ?? "");
-  const [category, setCategory] = useState("dairy");
-  const [unit, setUnit] = useState("kg"); // "kg" = by weight, "pcs" = by count
-  const [weight, setWeight] = useState("1");
-  const [quantity, setQuantity] = useState("1");
-  const [weightEach, setWeightEach] = useState("0.1"); // kg per piece
+  const [name, setName] = useState(editing?.name ?? route.params?.presetName ?? "");
+  const [category, setCategory] = useState(editing?.category ?? "dairy");
+  const [unit, setUnit] = useState(editing?.unit ?? "kg"); // "kg" = by weight, "pcs" = by count
+  const [weight, setWeight] = useState(String(editing?.weightKg ?? 1));
+  const [quantity, setQuantity] = useState(String(editing?.quantity ?? 1));
+  const [weightEach, setWeightEach] = useState(String(editing?.weightPerItemKg ?? 0.1)); // kg per piece
   const [expiry, setExpiry] = useState(() => {
+    if (editing) return parseISODate(editing.expiryDate);
     const d = new Date();
     d.setDate(d.getDate() + 7); // default: one week from today
     return d;
   });
   const [showPicker, setShowPicker] = useState(false);
-  const [photoUri, setPhotoUri] = useState(null);
+  const [photoUri, setPhotoUri] = useState(editing?.photoUri ?? null);
   const [toFamilyShelf, setToFamilyShelf] = useState(false);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -59,7 +66,7 @@ export default function AddItemScreen({ navigation, route }) {
   // Picking a category also fills in a typical weight for it
   const selectCategory = (c) => {
     setCategory(c.key);
-    setWeight(String(c.defaultWeightKg));
+    if (!editing) setWeight(String(c.defaultWeightKg)); // keep the real weight when editing
   };
 
   const openDialog = () => {
@@ -127,7 +134,9 @@ export default function AddItemScreen({ navigation, route }) {
       weightKg = Math.round(count * perItemKg * 100) / 100;
     }
 
-    if (expiry < today) return setError("Expiry date cannot be in the past.");
+    // When editing, an item that has already expired may keep its date
+    const unchangedDate = editing && toISODate(expiry) === editing.expiryDate;
+    if (expiry < today && !unchangedDate) return setError("Expiry date cannot be in the past.");
     setError("");
 
     const itemData = {
@@ -140,6 +149,26 @@ export default function AddItemScreen({ navigation, route }) {
       purchaseDate: toISODate(new Date()),
       expiryDate: toISODate(expiry),
     };
+
+    // Edit mode: save the changes (the purchase date stays the same)
+    if (editing) {
+      const changes = { ...itemData };
+      delete changes.purchaseDate;
+      if (isShelfEdit) {
+        // Keep the stored label/icon unless the category was changed
+        const sameCategory = category === editing.category;
+        updateShelfItem(editing, {
+          ...changes,
+          categoryLabel: sameCategory ? editing.categoryLabel : cat.label,
+          categoryIcon: sameCategory ? editing.categoryIcon : cat.icon,
+        }).catch(() => showMessage("Could not save the change. Please try again."));
+      } else {
+        await updateItem(editing.id, { ...changes, photoUri });
+      }
+      showMessage(`${trimmedName} updated`);
+      navigation.goBack();
+      return;
+    }
 
     // Family shelf: written straight to Firestore (shared, live). Not awaited,
     // so it also works offline - Firestore queues it and sends it later.
@@ -184,9 +213,12 @@ export default function AddItemScreen({ navigation, route }) {
         {photoUri ? (
           <Image source={{ uri: photoUri }} style={styles.photo} accessibilityLabel="Item photo" />
         ) : null}
-        <Button mode="outlined" icon="camera" onPress={handleTakePhoto} style={styles.photoButton}>
-          {photoUri ? "Retake photo" : "Take photo"}
-        </Button>
+        {/* Family-shelf items have no photo (photos stay on the phone that took them) */}
+        {!isShelfEdit ? (
+          <Button mode="outlined" icon="camera" onPress={handleTakePhoto} style={styles.photoButton}>
+            {photoUri ? "Retake photo" : "Take photo"}
+          </Button>
+        ) : null}
 
         <TextInput
           label="Item name"
@@ -294,7 +326,7 @@ export default function AddItemScreen({ navigation, route }) {
           />
         )}
 
-        {household ? (
+        {household && !editing ? (
           <View style={styles.switchRow}>
             <View style={styles.switchText}>
               <Text variant="titleSmall">Family shelf</Text>
@@ -317,7 +349,7 @@ export default function AddItemScreen({ navigation, route }) {
           loading={saving}
           disabled={saving}
         >
-          Save item
+          {editing ? "Save changes" : "Save item"}
         </Button>
       </ScrollView>
 

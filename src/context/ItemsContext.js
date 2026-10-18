@@ -134,6 +134,14 @@ export function ItemsProvider({ children }) {
     if (target?.reminderId && changes.status && changes.status !== "active") {
       await cancelReminder(target.reminderId);
       extra = { reminderId: null };
+    } else if (
+      target?.status === "active" &&
+      changes.expiryDate &&
+      changes.expiryDate !== target.expiryDate
+    ) {
+      // Expiry date edited -> move the reminder to the new date
+      await cancelReminder(target.reminderId);
+      extra = { reminderId: await scheduleExpiryReminder({ ...target, ...changes }) };
     }
     await persist(
       items.map((i) =>

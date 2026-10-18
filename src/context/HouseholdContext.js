@@ -28,6 +28,7 @@ import {
   forwardRequest,
   addToShelf,
   finishShelfItem,
+  updateShelfItem,
 } from "../services/householdService";
 import { displayName } from "../utils/names";
 import { toISODate } from "../utils/dates";
@@ -212,6 +213,7 @@ export function HouseholdProvider({ children }) {
     forwardRequest: (request, toUid) =>
       forwardRequest(householdId, request.id, user, toUid, memberNames[toUid]),
     addToShelf: (item) => addToShelf(householdId, user, item),
+    updateShelfItem: (item, changes) => updateShelfItem(householdId, item.id, user, changes),
     finishShelfItem: (item, status) =>
       finishShelfItem(householdId, item.id, user, status, toISODate(new Date())),
   };

@@ -31,11 +31,13 @@ export default function RootNavigator() {
           <Stack.Screen
             name="AddItem"
             component={AddItemScreen}
-            options={{
+            options={({ route }) => ({
               headerShown: true,
-              title: "Add item",
+              // The same screen is used to edit an item
+              title:
+                route.params?.editItemId || route.params?.editShelfItemId ? "Edit item" : "Add item",
               presentation: "modal",
-            }}
+            })}
           />
           <Stack.Screen
             name="ItemDetail"

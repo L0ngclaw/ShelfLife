@@ -223,6 +223,14 @@ export function addToShelf(hid, user, item) {
   });
 }
 
+// Edit a shared item or use part of it; every member sees the change live
+export function updateShelfItem(hid, itemId, user, changes) {
+  return updateDoc(doc(shelfOf(hid), itemId), {
+    ...changes,
+    updatedByName: displayName(user.email),
+  });
+}
+
 export function finishShelfItem(hid, itemId, user, status, finishedDate) {
   return updateDoc(doc(shelfOf(hid), itemId), {
     status, // 'eaten' or 'wasted'

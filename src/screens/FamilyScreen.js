@@ -25,6 +25,7 @@ import { usePermission } from "../hooks/usePermission";
 import PermissionDialog from "../components/PermissionDialog";
 import { describeExpiry, timeAgo } from "../utils/dates";
 import ExpiryRing from "../components/ExpiryRing";
+import UseSomeDialog from "../components/UseSomeDialog";
 import { formatAmount } from "../utils/amount";
 import { theme } from "../theme";
 
@@ -42,6 +43,7 @@ export default function FamilyScreen({ navigation }) {
   const [forwarding, setForwarding] = useState(null); // request being forwarded
   const [confirmLeave, setConfirmLeave] = useState(false);
   const [selectedShelfItem, setSelectedShelfItem] = useState(null);
+  const [usingShelfItem, setUsingShelfItem] = useState(null); // "Use some" dialog
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -116,6 +118,26 @@ export default function FamilyScreen({ navigation }) {
     setSelectedShelfItem(null);
     queueWrite(h.finishShelfItem(item, status));
     showMessage(`${item.name} marked as ${status === "eaten" ? "eaten" : "thrown away"}`);
+  };
+
+  // Part of a shared item was used: lower the amount, or mark as eaten when none is left
+  const handleUseShelfItem = ({ changes, finished }) => {
+    const item = usingShelfItem;
+    setUsingShelfItem(null);
+    if (finished) {
+      queueWrite(h.finishShelfItem(item, "eaten"));
+      showMessage(`${item.name} marked as eaten`);
+      return;
+    }
+    queueWrite(h.updateShelfItem(item, changes));
+    showMessage(`${item.name}: ${formatAmount({ ...item, ...changes })} left`);
+  };
+
+  const openShelfAction = (action) => {
+    const item = selectedShelfItem;
+    setSelectedShelfItem(null);
+    if (action === "use") setUsingShelfItem(item);
+    else navigation.navigate("AddItem", { editShelfItemId: item.id });
   };
 
   if (h.loading) {
@@ -508,7 +530,25 @@ export default function FamilyScreen({ navigation }) {
         <Dialog visible={!!selectedShelfItem} onDismiss={() => setSelectedShelfItem(null)}>
           <Dialog.Title>{selectedShelfItem?.name}</Dialog.Title>
           <Dialog.Content>
-            <Text variant="bodyMedium">What happened to it?</Text>
+            <View style={styles.shelfActions}>
+              <Button
+                mode="outlined"
+                icon="minus-circle-outline"
+                onPress={() => openShelfAction("use")}
+                style={styles.flex}
+              >
+                Use some
+              </Button>
+              <Button
+                mode="outlined"
+                icon="pencil-outline"
+                onPress={() => openShelfAction("edit")}
+                style={styles.flex}
+              >
+                Edit
+              </Button>
+            </View>
+            <Text variant="bodyMedium">Finished? What happened to it?</Text>
           </Dialog.Content>
           <Dialog.Actions>
             <Button onPress={() => setSelectedShelfItem(null)}>Cancel</Button>
@@ -520,6 +560,13 @@ export default function FamilyScreen({ navigation }) {
         </Dialog>
       </Portal>
 
+      <UseSomeDialog
+        key={usingShelfItem?.id ?? "none"}
+        item={usingShelfItem}
+        visible={!!usingShelfItem}
+        onUse={handleUseShelfItem}
+        onDismiss={() => setUsingShelfItem(null)}
+      />
       <PermissionDialog {...dialogProps} />
     </View>
   );
@@ -527,6 +574,7 @@ export default function FamilyScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
+  shelfActions: { flexDirection: "row", gap: 12, marginBottom: 16 },
   container: { padding: 16, paddingBottom: 32 },
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
   card: { marginBottom: 12 },
