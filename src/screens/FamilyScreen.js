@@ -21,6 +21,8 @@ import {
 import { useAuth } from "../context/AuthContext";
 import { useHousehold } from "../context/HouseholdContext";
 import { useFeedback } from "../context/FeedbackContext";
+import { usePermission } from "../hooks/usePermission";
+import PermissionDialog from "../components/PermissionDialog";
 import { describeExpiry, timeAgo } from "../utils/dates";
 import ExpiryRing from "../components/ExpiryRing";
 import { formatAmount } from "../utils/amount";
@@ -30,6 +32,7 @@ export default function FamilyScreen({ navigation }) {
   const { user } = useAuth();
   const h = useHousehold();
   const { showMessage } = useFeedback();
+  const { askPermission, dialogProps } = usePermission();
   const [section, setSection] = useState("requests");
   const [householdName, setHouseholdName] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
@@ -152,7 +155,10 @@ export default function FamilyScreen({ navigation }) {
               <Button
                 mode="contained"
                 disabled={busy}
-                onPress={() => run(() => h.accept(inv), `You joined ${inv.householdName}`)}
+                onPress={async () => {
+                  if (await run(() => h.accept(inv), `You joined ${inv.householdName}`))
+                    askPermission("notifications"); // to hear about family requests
+                }}
               >
                 Accept
               </Button>
@@ -180,7 +186,10 @@ export default function FamilyScreen({ navigation }) {
               icon="home-plus-outline"
               loading={busy}
               disabled={busy}
-              onPress={() => run(() => h.create(householdName), "Household created")}
+              onPress={async () => {
+                if (await run(() => h.create(householdName), "Household created"))
+                  askPermission("notifications"); // to hear about family requests
+              }}
             >
               Create
             </Button>
@@ -193,6 +202,7 @@ export default function FamilyScreen({ navigation }) {
         <HelperText type="error" visible={!!error}>
           {error}
         </HelperText>
+        <PermissionDialog {...dialogProps} />
       </ScrollView>
     );
   }
@@ -509,6 +519,8 @@ export default function FamilyScreen({ navigation }) {
           </Dialog.Actions>
         </Dialog>
       </Portal>
+
+      <PermissionDialog {...dialogProps} />
     </View>
   );
 }

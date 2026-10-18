@@ -2,9 +2,13 @@
 import * as ImagePicker from "expo-image-picker";
 import { File, Paths } from "expo-file-system";
 
+// Used by usePermission: check first, then ask (after our explanation dialog)
+export const getCameraPermission = () => ImagePicker.getCameraPermissionsAsync();
+export const requestCameraPermission = () => ImagePicker.requestCameraPermissionsAsync();
+
 export async function takePhoto() {
-  // 1. Ask for camera permission (the OS shows a popup the first time)
-  const permission = await ImagePicker.requestCameraPermissionsAsync();
+  // 1. The screen asks for permission first (usePermission), so here we only check
+  const permission = await ImagePicker.getCameraPermissionsAsync();
   if (!permission.granted) throw new Error("PERMISSION_DENIED");
 
   // 2. Open the camera. quality 0.5 = compressed, smaller file

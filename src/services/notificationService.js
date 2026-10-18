@@ -39,17 +39,36 @@ async function getNotifications() {
   return notificationsModule;
 }
 
-async function ensurePermission(Notifications) {
+// Android needs a channel before it can show notifications
+async function setUpChannel(Notifications) {
   if (Platform.OS === "android") {
     await Notifications.setNotificationChannelAsync(CHANNEL_ID, {
       name: "Expiry reminders",
       importance: Notifications.AndroidImportance.HIGH,
     });
   }
+}
+
+// Only checks. Asking is done by the screens (usePermission + PermissionDialog),
+// so the user always sees why before the system popup appears.
+async function isAllowed(Notifications) {
+  await setUpChannel(Notifications);
   const current = await Notifications.getPermissionsAsync();
-  if (current.granted) return true;
-  const asked = await Notifications.requestPermissionsAsync();
-  return asked.granted;
+  return current.granted;
+}
+
+// Used by usePermission
+export async function getNotificationPermission() {
+  const Notifications = await getNotifications();
+  if (!Notifications) return { granted: false, canAskAgain: false, unsupported: true };
+  return Notifications.getPermissionsAsync();
+}
+
+export async function requestNotificationPermission() {
+  const Notifications = await getNotifications();
+  if (!Notifications) return { granted: false };
+  await setUpChannel(Notifications);
+  return Notifications.requestPermissionsAsync();
 }
 
 // Returns the reminder id, or null if no reminder was scheduled
@@ -61,7 +80,7 @@ export async function scheduleExpiryReminder(item) {
 
   try {
     const Notifications = await getNotifications();
-    if (!Notifications || !(await ensurePermission(Notifications))) return null;
+    if (!Notifications || !(await isAllowed(Notifications))) return null;
     return await Notifications.scheduleNotificationAsync({
       content: {
         title: "Eat it before it goes off",
@@ -95,7 +114,7 @@ export async function cancelReminder(reminderId) {
 export async function notifyNow(title, body) {
   try {
     const Notifications = await getNotifications();
-    if (!Notifications || !(await ensurePermission(Notifications))) return false;
+    if (!Notifications || !(await isAllowed(Notifications))) return false;
     await Notifications.scheduleNotificationAsync({
       content: { title, body },
       trigger: Platform.OS === "android" ? { channelId: CHANNEL_ID } : null, // null = now

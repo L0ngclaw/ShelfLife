@@ -20,6 +20,8 @@ import { useItems } from "../context/ItemsContext";
 import { useCategories } from "../context/CategoriesContext";
 import { useFeedback } from "../context/FeedbackContext";
 import { useHousehold } from "../context/HouseholdContext";
+import { usePermission } from "../hooks/usePermission";
+import PermissionDialog from "../components/PermissionDialog";
 import { CUSTOM_CATEGORY_ICONS } from "../constants/categories";
 import { theme } from "../theme";
 
@@ -28,6 +30,7 @@ export default function AddItemScreen({ navigation, route }) {
   const { categories, addCategory, getCategory } = useCategories();
   const { household, addToShelf } = useHousehold();
   const { showMessage } = useFeedback();
+  const { askPermission, dialogProps } = usePermission();
 
   // A bought request can open this screen with the name already filled in
   const [name, setName] = useState(route.params?.presetName ?? "");
@@ -83,6 +86,8 @@ export default function AddItemScreen({ navigation, route }) {
   };
 
   const handleTakePhoto = async () => {
+    // Explain why we need the camera, then show the system popup
+    if (!(await askPermission("camera"))) return;
     try {
       const uri = await takePhoto();
       if (uri) setPhotoUri(uri); // null = user cancelled
@@ -146,6 +151,9 @@ export default function AddItemScreen({ navigation, route }) {
       navigation.goBack();
       return;
     }
+
+    // Reminders need notifications: explain and ask once (skipped if already allowed)
+    await askPermission("notifications");
 
     setSaving(true);
     try {
@@ -381,6 +389,8 @@ export default function AddItemScreen({ navigation, route }) {
           </Dialog.Actions>
         </Dialog>
       </Portal>
+
+      <PermissionDialog {...dialogProps} />
     </Portal.Host>
   );
 }
